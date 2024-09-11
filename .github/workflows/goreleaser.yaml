@@ -1,0 +1,34 @@
+name: goreleaser
+
+on:
+  workflow_run:
+    workflows: [docker]
+    types:
+      - completed
+
+jobs:
+  goreleaser:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: v6
+          args: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GORELEASER }}
