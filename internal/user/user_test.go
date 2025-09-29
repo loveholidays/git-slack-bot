@@ -1,3 +1,22 @@
+/*
+git-slack-bot
+Copyright (C) 2024 loveholidays
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program; if not, write to the Free Software Foundation,
+Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
 package user_test
 
 import (
@@ -30,13 +49,13 @@ var _ = Describe("HandleUser", func() {
 
 	Context("IsTeamMember", func() {
 		It("should return true if user is git team member", func() {
-			service := user.NewService(nil, []string{"userLogin"}, nil, nil)
+			service := user.NewService(nil, []string{"userLogin"}, nil, nil, nil)
 
 			Expect(service.IsTeamMember("userLogin")).To(BeTrue())
 		})
 
 		It("should return false if user is not git team member", func() {
-			service := user.NewService(nil, []string{"userLogin"}, nil, nil)
+			service := user.NewService(nil, []string{"userLogin"}, nil, nil, nil)
 
 			Expect(service.IsTeamMember("differentUserLogin")).To(BeFalse())
 		})
@@ -44,15 +63,29 @@ var _ = Describe("HandleUser", func() {
 
 	Context("IsIgnoredCommentUser", func() {
 		It("should return true if user comment should be ignored", func() {
-			service := user.NewService(nil, []string{"userLogin"}, nil, []string{"userLogin"})
+			service := user.NewService(nil, []string{"userLogin"}, nil, []string{"userLogin"}, nil)
 
 			Expect(service.IsIgnoredCommentUser("userLogin")).To(BeTrue())
 		})
 
 		It("should return false if user comment should not be ignored", func() {
-			service := user.NewService(nil, []string{"userLogin"}, nil, []string{"userLogin"})
+			service := user.NewService(nil, []string{"userLogin"}, nil, []string{"userLogin"}, nil)
 
 			Expect(service.IsIgnoredCommentUser("differentUserLogin")).To(BeFalse())
+		})
+	})
+
+	Context("IsIgnoredReviewUser", func() {
+		It("should return true if user comment should be ignored", func() {
+			service := user.NewService(nil, []string{"userLogin"}, nil, nil, []string{"userLogin"})
+
+			Expect(service.IsIgnoredReviewUser("userLogin")).To(BeTrue())
+		})
+
+		It("should return false if user comment should not be ignored", func() {
+			service := user.NewService(nil, []string{"userLogin"}, nil, nil, []string{"userLogin"})
+
+			Expect(service.IsIgnoredReviewUser("differentUserLogin")).To(BeFalse())
 		})
 	})
 
@@ -64,7 +97,7 @@ var _ = Describe("HandleUser", func() {
 					SlackEmail:  "user@user.com",
 				},
 			}
-			service := user.NewService(slackMock, []string{"userLogin"}, emails, nil)
+			service := user.NewService(slackMock, []string{"userLogin"}, emails, nil, nil)
 
 			slackMock.EXPECT().GetUserIDByEmail("user@user.com").Return("123", nil)
 
@@ -75,7 +108,7 @@ var _ = Describe("HandleUser", func() {
 
 		It("should return github login if there is no mapping between github and slack emails", func() {
 
-			service := user.NewService(slackMock, []string{"userLogin"}, []config.GithubEmailToSlackEmail{}, nil)
+			service := user.NewService(slackMock, []string{"userLogin"}, []config.GithubEmailToSlackEmail{}, nil, nil)
 
 			actual := service.GetUserDescriptor("userLogin")
 
@@ -89,7 +122,7 @@ var _ = Describe("HandleUser", func() {
 					SlackEmail:  "user@user.com",
 				},
 			}
-			service := user.NewService(slackMock, []string{"userLogin"}, emails, nil)
+			service := user.NewService(slackMock, []string{"userLogin"}, emails, nil, nil)
 
 			slackMock.EXPECT().GetUserIDByEmail("user@user.com").Return("", errors.New("not found"))
 

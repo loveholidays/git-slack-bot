@@ -1,20 +1,15 @@
 github:
   token: "$GITHUB_TOKEN"
-  org: loveholidays
-  team: Supply
+  org: organisation
+  team: team
   secretKey: "$GITHUB_WEBHOOK_SECRET"
   ignoredPRUsers:
-    - dmitri-lerko
-    - georgemalamidis-lh
-    - BenAxelsen
   ignoredCommentUsers:
-    - github-actions[bot]
   ignoredRepos:
-    - flux
 
 slack:
   token: "$SLACK_TOKEN"
-  channelID: "C056ZCEG3JR"
+  channelID: "$CHANNEL_ID"
   fetchMessageCount: 100
   emoji:
     approve: "+1"

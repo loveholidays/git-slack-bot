@@ -1,0 +1,23 @@
+release:
+  mode: replace
+
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: ./cmd/git-slack-bot
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'

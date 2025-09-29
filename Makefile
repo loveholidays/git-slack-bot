@@ -21,11 +21,6 @@ build: test ## Builds git-slack-bot go binary for local arch. Outputs to `bin/gi
 	@echo "== build"
 	mkdir -p bin/ && CGO_ENABLED=0 go build -o ./bin/ ./...
 
-demo: ## Spins up a local version of the app
-	@echo "== demo"
-	(cd .. && ./setup_environment.sh)
-	DOTENV_FILE=${HOME}/supply/git-slack-bot.env go run cmd/git-slack-bot/main.go
-
 ##@ Cleanup
 clean: ## Deletes binaries from the bin folder
 	@echo "== clean"

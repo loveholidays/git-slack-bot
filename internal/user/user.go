@@ -1,3 +1,22 @@
+/*
+git-slack-bot
+Copyright (C) 2024 loveholidays
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program; if not, write to the Free Software Foundation,
+Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
 package user
 
 import (
@@ -12,6 +31,7 @@ type Service interface {
 	IsTeamMember(githubLogin string) bool
 	GetUserDescriptor(githubLogin string) string
 	IsIgnoredCommentUser(githubLogin string) bool
+	IsIgnoredReviewUser(githubLogin string) bool
 }
 
 type ServiceImpl struct {
@@ -19,14 +39,16 @@ type ServiceImpl struct {
 	githubToSlackEmails []config.GithubEmailToSlackEmail
 	githubTeamMembers   []string
 	ignoredCommentUsers []string
+	ignoredReviewUsers  []string
 }
 
-func NewService(slackConnector slack.Interactor, githubTeamMembers []string, githubToSlackEmails []config.GithubEmailToSlackEmail, suppressedUsers []string) Service {
+func NewService(slackConnector slack.Interactor, githubTeamMembers []string, githubToSlackEmails []config.GithubEmailToSlackEmail, ignoredCommentUsers, ignoredReviewUsers []string) Service {
 	return &ServiceImpl{
 		slackConnector:      slackConnector,
 		githubToSlackEmails: githubToSlackEmails,
 		githubTeamMembers:   githubTeamMembers,
-		ignoredCommentUsers: suppressedUsers,
+		ignoredCommentUsers: ignoredCommentUsers,
+		ignoredReviewUsers:  ignoredReviewUsers,
 	}
 }
 
@@ -64,6 +86,15 @@ func (s *ServiceImpl) getSlackUserID(githubLogin string) (string, error) {
 
 func (s *ServiceImpl) IsIgnoredCommentUser(githubLogin string) bool {
 	for _, user := range s.ignoredCommentUsers {
+		if user == githubLogin {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *ServiceImpl) IsIgnoredReviewUser(githubLogin string) bool {
+	for _, user := range s.ignoredReviewUsers {
 		if user == githubLogin {
 			return true
 		}

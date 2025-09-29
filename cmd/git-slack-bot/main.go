@@ -5,7 +5,6 @@ import (
 	"git-slack-bot/internal/config"
 	"git-slack-bot/internal/github"
 	"git-slack-bot/internal/handler"
-	"git-slack-bot/internal/sentry"
 	"git-slack-bot/internal/slack"
 	"git-slack-bot/internal/user"
 	"log/slog"
@@ -13,21 +12,18 @@ import (
 	"os"
 	"time"
 
-	config_loader "github.com/loveholidays/hotels-and-ancillaries/go-config-loader/pkg/config"
+	config_loader "github.com/loveholidays/go-config-loader"
 	sl "github.com/slack-go/slack"
 )
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
-	cfg, err := config_loader.LoadConfiguration[config.Configuration]()
+	cfg, err := config_loader.LoadConfiguration[config.Configuration](os.Getenv("CONFIG_PATH"))
 	if err != nil {
 		slog.Error("Failed to load configuration", slog.Any("error", err))
 		os.Exit(1)
 	}
-
-	sentryClient := initSentry(cfg.Sentry)
-	defer sentryClient.CleanUp()
 
 	externalSlackClient := sl.New(cfg.Slack.Token)
 	slackConnector := slack.NewSlackConnector(cfg.Slack, externalSlackClient)
@@ -39,7 +35,7 @@ func main() {
 		slog.Error("Failed to establish GitHub connection", slog.Any("error", err))
 	}
 
-	userService := user.NewService(slackConnector, gitHubConnector.GetTeamMembers(), cfg.Slack.GithubEmailToSlackEmail, cfg.GitHub.IgnoredCommentUsers)
+	userService := user.NewService(slackConnector, gitHubConnector.GetTeamMembers(), cfg.Slack.GithubEmailToSlackEmail, cfg.GitHub.IgnoredCommentUsers, cfg.GitHub.IgnoredReviewUsers)
 	emojiConfiguration := cfg.Slack.EmojiConfiguration
 	if emojiConfiguration.Approve == "" {
 		emojiConfiguration.Approve = "+1"
@@ -64,16 +60,4 @@ func main() {
 	if err != nil {
 		slog.Error("Server error", slog.Any("error", err))
 	}
-}
-
-func initSentry(sentryCfg *config.Sentry) *sentry.Client {
-	if sentryCfg != nil {
-		sentryClient, err := sentry.Init(*sentryCfg)
-		if err != nil {
-			slog.Error("Failed to set up sentry", "error", err)
-			return nil
-		}
-		return sentryClient
-	}
-	return nil
 }

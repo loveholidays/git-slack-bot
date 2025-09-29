@@ -1,3 +1,22 @@
+/*
+git-slack-bot
+Copyright (C) 2024 loveholidays
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program; if not, write to the Free Software Foundation,
+Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
 package handler_test
 
 import (
@@ -128,10 +147,22 @@ https://github.com/loveholidays/flux/pull/92504`
 			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), ignoredReposEmpty)
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
+			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(false)
 			messageKey := &slack.Message{}
 			slackMock.EXPECT().GetMessage(gomock.Any()).Return(messageKey, nil)
 
 			slackMock.EXPECT().AddReactionToMessage("+1", messageKey)
+			webHookHandler.HandlePullRequestReviewEvent(prApprovedJSONData)
+		})
+
+		It("should not add tick emoji when pull request reviewer is ignored", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), ignoredReposEmpty)
+
+			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
+			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(true)
+			slackMock.EXPECT().GetMessage(gomock.Any()).Times(0)
+			slackMock.EXPECT().AddReactionToMessage(gomock.Any(), gomock.Any()).Times(0)
+
 			webHookHandler.HandlePullRequestReviewEvent(prApprovedJSONData)
 		})
 	})
