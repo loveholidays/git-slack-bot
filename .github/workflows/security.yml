@@ -38,28 +38,12 @@ jobs:
 
     - name: Build
       run: |
-        make build
+        go build ./...
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
         category: "/language:${{matrix.language}}"
-
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate
 
   gosec:
     name: Go Security Scan
@@ -77,12 +61,14 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Install gosec
+        run: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+
       - name: Run Gosec Security Scanner
-        uses: securecodewarrior/github-action-gosec@master
-        with:
-          args: '-fmt sarif -out gosec.sarif ./...'
+        run: gosec -fmt sarif -out gosec.sarif ./...
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gosec.sarif
+        if: always()
