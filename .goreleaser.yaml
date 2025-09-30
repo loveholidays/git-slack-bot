@@ -17,7 +17,37 @@ snapshot:
   version_template: "{{ incpatch .Version }}-next"
 changelog:
   sort: asc
+  use: github
+  groups:
+    - title: 'New Features'
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: 'Performance Improvements'
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: 'Refactors'
+      regexp: '^.*?refactor(\(.+\))??!?:.+$'
+      order: 3
+    - title: 'Documentation'
+      regexp: '^.*?docs(\(.+\))??!?:.+$'
+      order: 4
+    - title: 'Build & CI'
+      regexp: '^.*?(build|ci)(\(.+\))??!?:.+$'
+      order: 5
+    - title: 'Dependency Updates'
+      regexp: '^.*?(chore|deps)(\(.+\))??!?:.+$'
+      order: 6
+    - title: 'Others'
+      order: 999
   filters:
     exclude:
-      - '^docs:'
       - '^test:'
+      - '^style:'
+      - 'typo'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
