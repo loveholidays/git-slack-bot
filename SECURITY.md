@@ -48,11 +48,11 @@ We provide security updates for the following versions:
 
 ## Security Scanning
 
-The repository includes basic security scanning:
-- **govulncheck**: Scans for known vulnerabilities in Go dependencies
-- **gosec**: Basic Go security analysis
-
-> **Note**: Advanced security features (CodeQL, SARIF uploads, dependency review) require GitHub Advanced Security, which is not enabled on this private repository. These features will be available once the repository is made public.
+> **Note**: Automated security scanning features (CodeQL, SARIF uploads, dependency review) require GitHub Advanced Security, which is not enabled on this private repository. These features will be automatically enabled once the repository is made public.
+>
+> For now, manual security scanning can be performed locally using:
+> - `go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...`
+> - `go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest && gosec ./...`
 
 ## Security Best Practices
 
