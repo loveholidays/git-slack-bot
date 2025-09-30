@@ -1,0 +1,46 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  govulncheck:
+    name: Go Vulnerability Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Install govulncheck
+      run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+    - name: Run govulncheck
+      run: govulncheck ./...
+
+  gosec-basic:
+    name: Go Security Scan (Basic)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Install gosec
+      run: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+
+    - name: Run gosec (no SARIF upload)
+      run: gosec ./...

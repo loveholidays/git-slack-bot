@@ -46,6 +46,14 @@ We provide security updates for the following versions:
 | Latest  | ✅ Yes             |
 | < 1.0   | ❌ No              |
 
+## Security Scanning
+
+The repository includes basic security scanning:
+- **govulncheck**: Scans for known vulnerabilities in Go dependencies
+- **gosec**: Basic Go security analysis
+
+> **Note**: Advanced security features (CodeQL, SARIF uploads, dependency review) require GitHub Advanced Security, which is not enabled on this private repository. These features will be available once the repository is made public.
+
 ## Security Best Practices
 
 When deploying git-slack-bot:
