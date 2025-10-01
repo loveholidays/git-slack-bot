@@ -7,7 +7,7 @@ require (
 	github.com/loveholidays/go-config-loader v0.0.0-20241211150814-dc186d50df8d
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
-	github.com/slack-go/slack v0.16.0
+	github.com/slack-go/slack v0.17.3
 	go.uber.org/mock v0.5.0
 	golang.org/x/oauth2 v0.29.0
 )
