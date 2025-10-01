@@ -9,7 +9,7 @@ require (
 	github.com/onsi/gomega v1.37.0
 	github.com/slack-go/slack v0.16.0
 	go.uber.org/mock v0.5.0
-	golang.org/x/oauth2 v0.29.0
+	golang.org/x/oauth2 v0.31.0
 )
 
 require (
