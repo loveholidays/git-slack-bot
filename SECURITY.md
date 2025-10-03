@@ -6,11 +6,11 @@ We take the security of git-slack-bot seriously. If you discover a security vuln
 
 ### How to Report
 
-**Please do NOT report security vulnerabilities through public GitHub issues.**
+Please report security vulnerabilities by creating a GitHub issue at:
 
-Instead, please report security vulnerabilities by emailing:
+🔒 **https://github.com/loveholidays/git-slack-bot/issues**
 
-📧 **supply@loveholidays.com**
+Please label your issue with the `security` tag and provide detailed information about the vulnerability.
 
 Include as much of the following information as possible:
 
@@ -101,8 +101,8 @@ When deploying git-slack-bot:
 
 ## Security Contact
 
-For general security questions or concerns:
-- 📧 Email: supply@loveholidays.com
-- 🔒 For urgent security issues, please mark your email as "URGENT SECURITY"
+For general security questions or concerns, please create a GitHub issue at:
+- 🔒 https://github.com/loveholidays/git-slack-bot/issues
+- For urgent security issues, please label your issue with both `security` and `urgent` tags
 
 Thank you for helping keep git-slack-bot and our users safe!
