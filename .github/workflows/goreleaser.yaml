@@ -8,7 +8,7 @@ on:
 
 jobs:
   goreleaser:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.repository == 'loveholidays/git-slack-bot' }}
     runs-on: ubuntu-latest
     steps:
       - name: Login to Docker Hub
