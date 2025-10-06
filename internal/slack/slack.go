@@ -1,6 +1,6 @@
 /*
 git-slack-bot
-Copyright (C) 2024 loveholidays
+Copyright (C) 2025 loveholidays
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public

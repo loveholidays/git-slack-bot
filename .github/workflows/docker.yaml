@@ -3,11 +3,13 @@ name: docker
 on:
   push:
     tags:
-      - '*'
+      - 'v*.*.*'
+      - 'v*.*.*-*'
 
 jobs:
   docker:
     runs-on: ubuntu-latest
+    if: github.repository == 'loveholidays/git-slack-bot' && startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
