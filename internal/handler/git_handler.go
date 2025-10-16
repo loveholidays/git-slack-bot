@@ -209,5 +209,6 @@ func (g *GitHandler) HandleIssueCommentEvent(body []byte) {
 }
 
 func (g *GitHandler) isIgnoredRepo(repoName string) bool {
+
 	return slices.Contains(g.ignoredRepos, repoName)
 }
