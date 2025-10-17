@@ -6,13 +6,12 @@ on:
       - 'v*.*.*'
       - 'v*.*.*-*'
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     if: github.repository == 'loveholidays/git-slack-bot' && startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout
