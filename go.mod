@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/google/go-github/v56 v56.0.0
 	github.com/loveholidays/go-config-loader v0.0.0-20241211150814-dc186d50df8d
-	github.com/onsi/ginkgo/v2 v2.26.0
+	github.com/onsi/ginkgo/v2 v2.27.1
 	github.com/onsi/gomega v1.38.2
 	github.com/slack-go/slack v0.16.0
 	go.uber.org/mock v0.5.0
