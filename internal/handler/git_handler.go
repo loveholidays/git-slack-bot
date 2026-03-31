@@ -38,6 +38,7 @@ const (
 	readyForReview string = "ready_for_review"
 	reopened       string = "reopened"
 	submitted      string = "submitted"
+	dismissed      string = "dismissed"
 	approved       string = "approved"
 )
 
@@ -137,16 +138,27 @@ func (g *GitHandler) HandlePullRequestReviewEvent(body []byte) {
 		return
 	}
 
-	if *event.Action != submitted || *event.Review.State != approved {
-		return
+	switch *event.Action {
+	case submitted:
+		if *event.Review.State != approved {
+			return
+		}
+		messageKey := fmt.Sprintf("<%s>", *pullRequest.HTMLURL)
+		slackMessage, err := g.slackConnector.GetMessage(messageKey)
+		if err != nil {
+			slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
+			return
+		}
+		g.slackConnector.AddReactionToMessage(g.emoji.Approve, slackMessage)
+	case dismissed:
+		messageKey := fmt.Sprintf("<%s>", *pullRequest.HTMLURL)
+		slackMessage, err := g.slackConnector.GetMessage(messageKey)
+		if err != nil {
+			slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
+			return
+		}
+		g.slackConnector.RemoveReactionFromMessage(g.emoji.Approve, slackMessage)
 	}
-	messageKey := fmt.Sprintf("<%s>", *pullRequest.HTMLURL)
-	slackMessage, err := g.slackConnector.GetMessage(messageKey)
-	if err != nil {
-		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
-		return
-	}
-	g.slackConnector.AddReactionToMessage(g.emoji.Approve, slackMessage)
 }
 
 func (g *GitHandler) HandlePullRequestReviewCommentEvent(body []byte) {
