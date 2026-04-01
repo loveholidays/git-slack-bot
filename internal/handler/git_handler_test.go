@@ -44,6 +44,8 @@ var (
 	prReopenedJSONData []byte
 	//go:embed example-requests/pr-approved.json
 	prApprovedJSONData []byte
+	//go:embed example-requests/pr-review-dismissed.json
+	prReviewDismissedJSONData []byte
 	//go:embed example-requests/pr-comment.json
 	prCommentJSONData []byte
 	//go:embed example-requests/pr-top-level-comment.json
@@ -164,6 +166,29 @@ https://github.com/loveholidays/flux/pull/92504`
 			slackMock.EXPECT().AddReactionToMessage(gomock.Any(), gomock.Any()).Times(0)
 
 			webHookHandler.HandlePullRequestReviewEvent(prApprovedJSONData)
+		})
+
+		It("should remove approve emoji when pull request review is dismissed", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), ignoredReposEmpty)
+
+			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
+			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(false)
+			messageKey := &slack.Message{}
+			slackMock.EXPECT().GetMessage(gomock.Any()).Return(messageKey, nil)
+
+			slackMock.EXPECT().RemoveReactionFromMessage("+1", messageKey)
+			webHookHandler.HandlePullRequestReviewEvent(prReviewDismissedJSONData)
+		})
+
+		It("should not remove approve emoji when dismissed review is from ignored reviewer", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), ignoredReposEmpty)
+
+			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
+			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(true)
+			slackMock.EXPECT().GetMessage(gomock.Any()).Times(0)
+			slackMock.EXPECT().RemoveReactionFromMessage(gomock.Any(), gomock.Any()).Times(0)
+
+			webHookHandler.HandlePullRequestReviewEvent(prReviewDismissedJSONData)
 		})
 	})
 
