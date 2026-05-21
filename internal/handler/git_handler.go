@@ -150,7 +150,7 @@ func (g *GitHandler) HandlePullRequestReviewEvent(body []byte) {
 			g.slackConnector.AddReactionToMessage(g.emoji.Approve, slackMessage)
 		}
 		if event.Review.GetBody() != "" {
-			g.slackConnector.SendReply(slackMessage, g.messageBuilder.BuildPRCommentMessage(g.userService.GetUserDescriptor(*event.Review.User.Login), event.Review))
+			g.slackConnector.SendReply(slackMessage, g.messageBuilder.BuildPRReviewMessage(g.userService.GetUserDescriptor(*event.Review.User.Login), event.Review))
 		}
 	case dismissed:
 		messageKey := fmt.Sprintf("<%s>", *pullRequest.HTMLURL)

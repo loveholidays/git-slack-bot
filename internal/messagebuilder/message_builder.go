@@ -33,6 +33,10 @@ func (m *MessageBuilder) BuildPRCommentMessage(userDescriptor string, event gh.P
 	return fmt.Sprintf("%s left a <%s|comment>:\n> @L%v %s\n%s", userDescriptor, event.Comment.GetHTMLURL(), event.Comment.GetLine(), event.GetComment().GetPath(), event.Comment.GetBody())
 }
 
+func (m *MessageBuilder) BuildPRReviewMessage(userDescriptor string, review *gh.PullRequestReview) string {
+	return fmt.Sprintf("%s left a <%s|review>:\n%s", userDescriptor, review.GetHTMLURL(), review.GetBody())
+}
+
 func (m *MessageBuilder) BuildIssueCommentMessage(userDescriptor string, event gh.IssueCommentEvent) string {
 	return fmt.Sprintf("%s left a <%s|comment>:\n%s", userDescriptor, event.Comment.GetHTMLURL(), event.Comment.GetBody())
 }
