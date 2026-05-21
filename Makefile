@@ -5,7 +5,7 @@ help:  ## Display this help.
 
 ##@ Tools
 tools: ## Installs required binaries locally.
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 	go install github.com/onsi/ginkgo/v2/ginkgo@latest
 	go install go.uber.org/mock/mockgen@latest
 
