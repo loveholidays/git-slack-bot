@@ -140,16 +140,18 @@ func (g *GitHandler) HandlePullRequestReviewEvent(body []byte) {
 
 	switch *event.Action {
 	case submitted:
-		if *event.Review.State != approved {
-			return
-		}
 		messageKey := fmt.Sprintf("<%s>", *pullRequest.HTMLURL)
 		slackMessage, err := g.slackConnector.GetMessage(messageKey)
 		if err != nil {
 			slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
 			return
 		}
-		g.slackConnector.AddReactionToMessage(g.emoji.Approve, slackMessage)
+		if event.Review.GetState() == approved {
+			g.slackConnector.AddReactionToMessage(g.emoji.Approve, slackMessage)
+		}
+		if event.Review.GetBody() != "" {
+			g.slackConnector.SendReply(slackMessage, g.messageBuilder.BuildPRCommentMessage(g.userService.GetUserDescriptor(*event.Review.User.Login), event.Review))
+		}
 	case dismissed:
 		messageKey := fmt.Sprintf("<%s>", *pullRequest.HTMLURL)
 		slackMessage, err := g.slackConnector.GetMessage(messageKey)

@@ -157,6 +157,80 @@ https://github.com/loveholidays/flux/pull/92504`
 			webHookHandler.HandlePullRequestReviewEvent(prApprovedJSONData)
 		})
 
+		It("should post review body to slack as a reply when pull request review has body", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), ignoredReposEmpty)
+			reviewBodyJSON := []byte(`{
+				"action": "submitted",
+				"review": {
+					"state": "changes_requested",
+					"body": "Please update this before merging.",
+					"html_url": "https://github.test/example-org/example-repo/pull/42#pullrequestreview-1001",
+					"user": {
+						"login": "reviewer-login"
+					}
+				},
+				"pull_request": {
+					"html_url": "https://github.test/example-org/example-repo/pull/42",
+					"user": {
+						"login": "author-login"
+					}
+				},
+				"repository": {
+					"name": "example-repo"
+				}
+			}`)
+
+			userMock.EXPECT().IsTeamMember("author-login").Return(true)
+			userMock.EXPECT().IsIgnoredReviewUser("reviewer-login").Return(false)
+			userMock.EXPECT().GetUserDescriptor("reviewer-login").Return("<@123>")
+			messageKey := &slack.Message{}
+			slackMock.EXPECT().GetMessage("<https://github.test/example-org/example-repo/pull/42>").Return(messageKey, nil)
+
+			expected := `<@123> left a <https://github.test/example-org/example-repo/pull/42#pullrequestreview-1001|review>:
+Please update this before merging.`
+
+			slackMock.EXPECT().SendReply(messageKey, expected)
+			slackMock.EXPECT().AddReactionToMessage(gomock.Any(), gomock.Any()).Times(0)
+			webHookHandler.HandlePullRequestReviewEvent(reviewBodyJSON)
+		})
+
+		It("should post approval review body and add tick emoji when approved review has body", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), ignoredReposEmpty)
+			approvedReviewBodyJSON := []byte(`{
+				"action": "submitted",
+				"review": {
+					"state": "approved",
+					"body": "Looks good overall.",
+					"html_url": "https://github.test/example-org/example-repo/pull/42#pullrequestreview-1002",
+					"user": {
+						"login": "reviewer-login"
+					}
+				},
+				"pull_request": {
+					"html_url": "https://github.test/example-org/example-repo/pull/42",
+					"user": {
+						"login": "author-login"
+					}
+				},
+				"repository": {
+					"name": "example-repo"
+				}
+			}`)
+
+			userMock.EXPECT().IsTeamMember("author-login").Return(true)
+			userMock.EXPECT().IsIgnoredReviewUser("reviewer-login").Return(false)
+			userMock.EXPECT().GetUserDescriptor("reviewer-login").Return("<@123>")
+			messageKey := &slack.Message{}
+			slackMock.EXPECT().GetMessage("<https://github.test/example-org/example-repo/pull/42>").Return(messageKey, nil)
+
+			expected := `<@123> left a <https://github.test/example-org/example-repo/pull/42#pullrequestreview-1002|review>:
+Looks good overall.`
+
+			slackMock.EXPECT().AddReactionToMessage("+1", messageKey)
+			slackMock.EXPECT().SendReply(messageKey, expected)
+			webHookHandler.HandlePullRequestReviewEvent(approvedReviewBodyJSON)
+		})
+
 		It("should not add tick emoji when pull request reviewer is ignored", func() {
 			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), ignoredReposEmpty)
 
