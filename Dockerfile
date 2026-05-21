@@ -1,10 +1,10 @@
-FROM golang:1.24 AS builder
+FROM golang:1.25 AS builder
 
 RUN apt-get update && \
     apt-get install -y ca-certificates libssl-dev cpio
 
 # Installing dependencies
-RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest \
+RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest \
   && go install github.com/onsi/ginkgo/v2/ginkgo@latest
 
 WORKDIR /src
