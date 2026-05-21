@@ -1,6 +1,6 @@
 module git-slack-bot
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/google/go-github/v56 v56.0.0
