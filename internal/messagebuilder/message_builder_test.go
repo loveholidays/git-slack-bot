@@ -74,6 +74,21 @@ Wow comments work too now?`
 		Expect(actual).To(Equal(expected))
 	})
 
+	It("should build a PR review message", func() {
+		messageBuilder := MessageBuilder{}
+		review := &gh.PullRequestReview{
+			HTMLURL: gh.String("https://github.test/example-org/example-repo/pull/42#pullrequestreview-1001"),
+			Body:    gh.String("Please update this before merging."),
+		}
+
+		actual := messageBuilder.BuildPRReviewMessage("@Reviewer", review)
+
+		expected := `@Reviewer left a <https://github.test/example-org/example-repo/pull/42#pullrequestreview-1001|review>:
+Please update this before merging.`
+
+		Expect(actual).To(Equal(expected))
+	})
+
 	It("should build an issue comment message", func() {
 		messageBuilder := MessageBuilder{}
 
