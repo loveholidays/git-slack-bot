@@ -89,6 +89,14 @@ https://github.com/loveholidays/hotels-and-ancillaries/pull/808`
 			webHookHandler.HandlePullRequestEvent(prOpenedJSONData)
 		})
 
+		It("should no-op when the repository is not on the allowlist", func() {
+			webHookHandler := handler.NewGitHandlerWithAllowedRepos(slackMock, userMock, validEmojis(), nil, []string{"loveholidays/another-repository"})
+
+			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
+			slackMock.EXPECT().SendMessage(gomock.Any()).Times(0)
+			webHookHandler.HandlePullRequestEvent(prOpenedJSONData)
+		})
+
 		It("should post slack message when pull request ready for review", func() {
 			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), ignoredReposEmpty)
 

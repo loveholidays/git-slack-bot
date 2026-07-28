@@ -55,15 +55,21 @@ type GitHandler struct {
 	userService    user.Service
 	emoji          config.EmojiConfiguration
 	ignoredRepos   []string
+	allowedRepos   []string
 }
 
 func NewGitHandler(slackConnector slack.Interactor, userService user.Service, emoji config.EmojiConfiguration, ignoredRepos []string) *GitHandler {
+	return NewGitHandlerWithAllowedRepos(slackConnector, userService, emoji, ignoredRepos, nil)
+}
+
+func NewGitHandlerWithAllowedRepos(slackConnector slack.Interactor, userService user.Service, emoji config.EmojiConfiguration, ignoredRepos, allowedRepos []string) *GitHandler {
 	return &GitHandler{
 		slackConnector: slackConnector,
 		messageBuilder: messageBuilder.MessageBuilder{},
 		userService:    userService,
 		emoji:          emoji,
 		ignoredRepos:   ignoredRepos,
+		allowedRepos:   allowedRepos,
 	}
 }
 
@@ -76,7 +82,7 @@ func (g *GitHandler) HandlePullRequestEvent(body []byte) {
 	}
 	pullRequest := event.PullRequest
 
-	if g.isIgnoredRepo(*event.Repo.Name) {
+	if g.isIgnoredRepo(*event.Repo.Name) || !g.isAllowedRepo(event.Repo) {
 		return
 	}
 
@@ -126,7 +132,7 @@ func (g *GitHandler) HandlePullRequestReviewEvent(body []byte) {
 	}
 	pullRequest := event.PullRequest
 
-	if g.isIgnoredRepo(*event.Repo.Name) {
+	if g.isIgnoredRepo(*event.Repo.Name) || !g.isAllowedRepo(event.Repo) {
 		return
 	}
 
@@ -172,7 +178,7 @@ func (g *GitHandler) HandlePullRequestReviewCommentEvent(body []byte) {
 	}
 	pullRequest := event.PullRequest
 
-	if g.isIgnoredRepo(*event.Repo.Name) {
+	if g.isIgnoredRepo(*event.Repo.Name) || !g.isAllowedRepo(event.Repo) {
 		return
 	}
 
@@ -201,7 +207,7 @@ func (g *GitHandler) HandleIssueCommentEvent(body []byte) {
 		return
 	}
 
-	if g.isIgnoredRepo(*event.Repo.Name) {
+	if g.isIgnoredRepo(*event.Repo.Name) || !g.isAllowedRepo(event.Repo) {
 		return
 	}
 
@@ -224,4 +230,11 @@ func (g *GitHandler) HandleIssueCommentEvent(body []byte) {
 
 func (g *GitHandler) isIgnoredRepo(repoName string) bool {
 	return slices.Contains(g.ignoredRepos, repoName)
+}
+
+func (g *GitHandler) isAllowedRepo(repo *gh.Repository) bool {
+	if len(g.allowedRepos) == 0 {
+		return true
+	}
+	return slices.Contains(g.allowedRepos, repo.GetFullName())
 }

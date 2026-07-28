@@ -46,7 +46,7 @@ func main() {
 	if emojiConfiguration.Close == "" {
 		emojiConfiguration.Close = "x"
 	}
-	gitHandler := handler.NewGitHandler(slackConnector, userService, emojiConfiguration, cfg.GitHub.IgnoredRepos)
+	gitHandler := handler.NewGitHandlerWithAllowedRepos(slackConnector, userService, emojiConfiguration, cfg.GitHub.IgnoredRepos, cfg.GitHub.AllowedRepos)
 	webhookEventHandler := handler.NewWebhookEventHandler([]byte(cfg.GitHub.SecretKey), gitHandler)
 	http.HandleFunc("/git-event", webhookEventHandler.HandleWebhook)
 	http.HandleFunc("/", webhookEventHandler.HandleHeathCheck)

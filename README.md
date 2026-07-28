@@ -72,6 +72,12 @@ make build
 4. **Deploy**: Use Docker or binary deployment
 5. **Set webhook URL**: Point your GitHub App webhook to your deployment
 
+### Data Science code-review setup
+
+Use [config.example.yaml](config.example.yaml) as the starting point. It is preconfigured for the Data Science team and its three selected repositories. Keep `teamMemberRole: "member"` to exclude Data Science team maintainers. A non-draft PR is posted when opened; a draft PR is posted only after GitHub emits `ready_for_review`.
+
+When installing the GitHub App, select **Only select repositories** and choose those same repositories. The application allowlist is a second safeguard in case the App receives webhooks from another repository.
+
 ### Example Configuration
 
 ```yaml
@@ -79,13 +85,21 @@ github:
   token: "ghp_your_github_token_here"
   secretKey: "your_webhook_secret_here"
   org: "your-github-org"
-  team: "your-team-name"
+  team: "Data Science"
+  # "member" excludes GitHub team maintainers; "all" is the backwards-compatible default.
+  teamMemberRole: "member"
+  # Full GitHub repository names. Webhooks for any other repository are ignored.
+  allowedRepos:
+    - "loveholidays/insights-auto-optimisation"
+    - "loveholidays/koios"
+    - "loveholidays/data-science-dashboards"
   ignoredPRUsers: ["dependabot[bot]", "renovate[bot]"]
   ignoredCommentUsers: ["github-actions[bot]"]
 
 slack:
   token: "xoxb-your-slack-bot-token-here"
-  channelID: "C1234567890"
+  # #data-science-code-review
+  channelID: "C09NJQKR1H7"
   githubEmailToSlackEmail:
     - githubEmail: "john.doe"
       slackEmail: "john.doe@company.com"
@@ -132,6 +146,8 @@ Before setting up git-slack-bot, you'll need:
   - `secretKey`: The secret key of the github webhook to verify incoming events against
   - `org`: The github organization the team is in
   - `team`: The team which has the members to post PR for
+  - `teamMemberRole`: GitHub team role to notify for. Set to `member` to exclude team maintainers. Valid values are `all` (default), `member`, and `maintainer`.
+  - `allowedRepos`: Optional allowlist of full `owner/repository` names. Set this to one repository to ensure the bot processes webhooks only for that repository.
   - `ignoredPRUsers`: Users in the github team to ignore opened PRs for. Their comments will still show up in threads.
   - `ignoredCommentUsers`: Users to ignore PR comments from. Recommended to add any automated github app account
 - `slack`:

@@ -135,6 +135,18 @@ var _ = Describe("NewConnector", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(connector).To(BeNil())
 	})
+
+	It("should fail to create client when the team member role is invalid", func() {
+		cfg := config.GitHubConfiguration{
+			Team:           "TestTeam",
+			Org:            "TestOrg",
+			TeamMemberRole: "owner",
+		}
+
+		connector, err := github.NewGitHubConnector(context.Background(), cfg, mockClient)
+		Expect(err).To(HaveOccurred())
+		Expect(connector).To(BeNil())
+	})
 })
 
 var _ = Describe("GetTeamMembers", func() {
@@ -151,6 +163,7 @@ var _ = Describe("GetTeamMembers", func() {
 			Token:          "anyToken",
 			Team:           "TestTeam",
 			Org:            "TestOrg",
+			TeamMemberRole: "member",
 			IgnoredPRUsers: []string{"BlackListed"},
 			IgnoredRepos:   []string{"RepoToBeIgnored"},
 		}
@@ -200,5 +213,13 @@ var _ = Describe("GetTeamMembers", func() {
 		expected := []string{"NonBlackListed"}
 
 		Expect(teamMembers).To(Equal(expected))
+	})
+
+	It("should request only GitHub team members when configured", func() {
+		mockClient.EXPECT().ListTeamMembers(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Cond(func(options *gh.TeamListTeamMembersOptions) bool {
+			return options.Role == "member"
+		})).Return([]*gh.User{}, nil)
+
+		Expect(connector.GetTeamMembers()).To(BeEmpty())
 	})
 })

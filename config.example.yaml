@@ -1,0 +1,25 @@
+github:
+  token: "ghp_your_github_token_here"
+  secretKey: "your_webhook_secret_here"
+  org: "loveholidays"
+  team: "Data Science"
+  # Excludes users whose GitHub team role is maintainer.
+  teamMemberRole: "member"
+  # The bot ignores webhook events from repositories not listed here.
+  allowedRepos:
+    - "loveholidays/insights-auto-optimisation"
+    - "loveholidays/koios"
+    - "loveholidays/data-science-dashboards"
+  ignoredPRUsers:
+    - "dependabot[bot]"
+  ignoredCommentUsers:
+    - "github-actions[bot]"
+
+slack:
+  token: "xoxb-your-slack-bot-token-here"
+  # #data-science-code-review
+  channelID: "C09NJQKR1H7"
+  emoji:
+    approve: "white_check_mark"
+    merge: "merged"
+    close: "x"

@@ -77,10 +77,19 @@ type Connector struct {
 	repoOwner     string
 	orgID         int64
 	teamID        int64
+	teamMemberRole string
 	userBlackList []string
 }
 
 func NewGitHubConnector(ctx context.Context, cfg config.GitHubConfiguration, client Client) (*Connector, error) {
+	teamMemberRole := cfg.TeamMemberRole
+	if teamMemberRole == "" {
+		teamMemberRole = "all"
+	}
+	if teamMemberRole != "all" && teamMemberRole != "member" && teamMemberRole != "maintainer" {
+		return nil, errors.New("teamMemberRole must be one of: all, member, maintainer")
+	}
+
 	org, err := client.GetOrg(ctx, cfg.Org)
 	if err != nil {
 		return nil, err
@@ -97,6 +106,7 @@ func NewGitHubConnector(ctx context.Context, cfg config.GitHubConfiguration, cli
 				repoOwner:     cfg.Org,
 				orgID:         *org.ID,
 				teamID:        *team.ID,
+				teamMemberRole: teamMemberRole,
 				userBlackList: cfg.IgnoredPRUsers,
 			}, nil
 		}
@@ -106,6 +116,7 @@ func NewGitHubConnector(ctx context.Context, cfg config.GitHubConfiguration, cli
 
 func (ghc *Connector) GetTeamMembers() []string {
 	usersFromAPI, err := ghc.client.ListTeamMembers(ghc.ctx, ghc.teamID, ghc.orgID, &github.TeamListTeamMembersOptions{
+		Role: ghc.teamMemberRole,
 		ListOptions: github.ListOptions{
 			PerPage: 999,
 		},

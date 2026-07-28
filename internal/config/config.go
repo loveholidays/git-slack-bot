@@ -28,9 +28,11 @@ type Configuration struct {
 type GitHubConfiguration struct {
 	Token               string   `yaml:"token"  required:"true"`
 	Team                string   `yaml:"team"  required:"true"`
+	TeamMemberRole      string   `yaml:"teamMemberRole"`
 	Org                 string   `yaml:"org"  required:"true"`
 	IgnoredPRUsers      []string `yaml:"ignoredPRUsers"`
 	IgnoredRepos        []string `yaml:"ignoredRepos"`
+	AllowedRepos        []string `yaml:"allowedRepos"`
 	SecretKey           string   `yaml:"secretKey"  required:"true"`
 	IgnoredCommentUsers []string `yaml:"ignoredCommentUsers"`
 	IgnoredReviewUsers  []string `yaml:"ignoredReviewUsers"`
