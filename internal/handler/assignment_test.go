@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"git-slack-bot/internal/config"
 	"git-slack-bot/internal/handler"
 	bot_slack "git-slack-bot/internal/slack"
 	mock_slack "git-slack-bot/internal/slack/mocks"
@@ -48,7 +49,12 @@ func TestAssigneeNotifications(t *testing.T) {
 		draft            bool
 		state            string
 		wantNotification bool
+		disabled         bool
 	}{
+		{name: "default author notification", repository: "loveholidays/backend", author: "member", action: "opened", disabled: true, wantNotification: true},
+		{name: "default Flux assignee ignored at creation", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "opened", disabled: true},
+		{name: "default Flux assignee ignored later", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "assigned", assignedUser: "member", disabled: true},
+		{name: "default Flux author assignment ignored", repository: "loveholidays/flux", author: "member", assignees: []string{"member"}, action: "assigned", assignedUser: "member", disabled: true},
 		{name: "existing team author", repository: "loveholidays/backend", author: "member", action: "opened", wantNotification: true},
 		{name: "Flux team assignee at creation", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "opened", wantNotification: true},
 		{name: "Flux team assignee added later", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "assigned", assignedUser: "member", wantNotification: true},
@@ -68,7 +74,7 @@ func TestAssigneeNotifications(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			slackMock := mock_slack.NewMockInteractor(gomock.NewController(t))
 			userService := user.NewService(slackMock, []string{"member", "another-member"}, nil, nil, nil)
-			gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), nil)
+			gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), config.GitHubConfiguration{NotifyAssignedFluxPRs: !testCase.disabled})
 			pullRequest := assignmentPullRequest(testCase.author, testCase.assignees)
 			pullRequest.Draft = gh.Bool(testCase.draft)
 			pullRequest.State = gh.String(testCase.state)
@@ -132,7 +138,7 @@ func TestFluxAssigneeReactionsAndThreads(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			slackMock := mock_slack.NewMockInteractor(gomock.NewController(t))
 			userService := user.NewService(slackMock, []string{"member"}, nil, nil, nil)
-			gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), nil)
+			gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), config.GitHubConfiguration{NotifyAssignedFluxPRs: true})
 			message := &slack.Message{Msg: slack.Msg{Timestamp: "123.456"}}
 			slackMock.EXPECT().GetMessage("<https://github.com/loveholidays/flux/pull/42>").Return(message, nil)
 			testCase.run(t, gitHandler, slackMock, message, assignmentPullRequest("external", []string{"member"}))
@@ -191,7 +197,7 @@ func TestGitEventsWithoutSlackThread(t *testing.T) {
 			userMock.EXPECT().IsIgnoredCommentUser(gomock.Any()).Return(false).AnyTimes()
 			userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("reviewer").AnyTimes()
 			slackMock.EXPECT().GetMessage(gomock.Any()).Return(nil, errors.New("thread unavailable"))
-			testCase.run(handler.NewGitHandler(slackMock, userMock, validEmojis(), nil))
+			testCase.run(handler.NewGitHandler(slackMock, userMock, validEmojis(), config.GitHubConfiguration{NotifyAssignedFluxPRs: true}))
 		})
 	}
 }
@@ -199,8 +205,20 @@ func TestGitEventsWithoutSlackThread(t *testing.T) {
 func TestMalformedGitEvents(t *testing.T) {
 	slackMock := mock_slack.NewMockInteractor(gomock.NewController(t))
 	userService := user.NewService(slackMock, []string{"member"}, nil, nil, nil)
-	gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), nil)
+	gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), config.GitHubConfiguration{NotifyAssignedFluxPRs: true})
 	for _, handle := range []func([]byte){gitHandler.HandlePullRequestEvent, gitHandler.HandlePullRequestReviewEvent, gitHandler.HandlePullRequestReviewCommentEvent, gitHandler.HandleIssueCommentEvent} {
 		handle([]byte("{"))
 	}
+}
+
+func TestDisabledFluxAssignmentTracking(t *testing.T) {
+	slackMock := mock_slack.NewMockInteractor(gomock.NewController(t))
+	userService := user.NewService(slackMock, []string{"member"}, nil, nil, nil)
+	gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), config.GitHubConfiguration{})
+	pullRequest := assignmentPullRequest("external", []string{"member"})
+	repository := assignmentRepository("loveholidays/flux")
+	gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("closed"), Repo: repository, PullRequest: pullRequest}))
+	gitHandler.HandlePullRequestReviewEvent(assignmentJSON(t, gh.PullRequestReviewEvent{Action: gh.String("submitted"), Repo: repository, PullRequest: pullRequest, Review: &gh.PullRequestReview{State: gh.String("approved"), User: &gh.User{Login: gh.String("reviewer")}}}))
+	gitHandler.HandlePullRequestReviewCommentEvent(assignmentJSON(t, gh.PullRequestReviewCommentEvent{Action: gh.String("created"), Repo: repository, PullRequest: pullRequest, Comment: &gh.PullRequestComment{User: &gh.User{Login: gh.String("reviewer")}}}))
+	gitHandler.HandleIssueCommentEvent(assignmentJSON(t, gh.IssueCommentEvent{Action: gh.String("created"), Repo: repository, Issue: &gh.Issue{User: pullRequest.User, Assignees: pullRequest.Assignees, HTMLURL: pullRequest.HTMLURL}, Comment: &gh.IssueComment{User: &gh.User{Login: gh.String("reviewer")}}}))
 }

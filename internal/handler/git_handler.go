@@ -51,20 +51,20 @@ type GitEventHandler interface {
 }
 
 type GitHandler struct {
-	slackConnector slack.Interactor
-	messageBuilder messageBuilder.MessageBuilder
-	userService    user.Service
-	emoji          config.EmojiConfiguration
-	ignoredRepos   []string
+	slackConnector      slack.Interactor
+	messageBuilder      messageBuilder.MessageBuilder
+	userService         user.Service
+	emoji               config.EmojiConfiguration
+	githubConfiguration config.GitHubConfiguration
 }
 
-func NewGitHandler(slackConnector slack.Interactor, userService user.Service, emoji config.EmojiConfiguration, ignoredRepos []string) *GitHandler {
+func NewGitHandler(slackConnector slack.Interactor, userService user.Service, emoji config.EmojiConfiguration, githubConfiguration config.GitHubConfiguration) *GitHandler {
 	return &GitHandler{
-		slackConnector: slackConnector,
-		messageBuilder: messageBuilder.MessageBuilder{},
-		userService:    userService,
-		emoji:          emoji,
-		ignoredRepos:   ignoredRepos,
+		slackConnector:      slackConnector,
+		messageBuilder:      messageBuilder.MessageBuilder{},
+		userService:         userService,
+		emoji:               emoji,
+		githubConfiguration: githubConfiguration,
 	}
 }
 
@@ -236,14 +236,14 @@ func (g *GitHandler) sendCommentReply(pullRequestURL, message string) {
 }
 
 func (g *GitHandler) isIgnoredRepo(repoName string) bool {
-	return slices.Contains(g.ignoredRepos, repoName)
+	return slices.Contains(g.githubConfiguration.IgnoredRepos, repoName)
 }
 
 func (g *GitHandler) isRelevantPullRequest(repository *gh.Repository, author *gh.User, assignees []*gh.User) bool {
 	if g.userService.IsTeamMember(author.GetLogin()) {
 		return true
 	}
-	if repository.GetFullName() != "loveholidays/flux" {
+	if !g.githubConfiguration.TracksAssignedFluxPRs(repository.GetFullName()) {
 		return false
 	}
 	for _, assignee := range assignees {
@@ -264,7 +264,7 @@ func parseGitEvent[Event any](body []byte) *Event {
 }
 
 func (g *GitHandler) isTeamAssignment(event *gh.PullRequestEvent) bool {
-	return event.GetRepo().GetFullName() == "loveholidays/flux" &&
+	return g.githubConfiguration.TracksAssignedFluxPRs(event.GetRepo().GetFullName()) &&
 		g.userService.IsTeamMember(event.GetAssignee().GetLogin())
 }
 
