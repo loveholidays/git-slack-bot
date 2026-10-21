@@ -26,14 +26,15 @@ type Configuration struct {
 }
 
 type GitHubConfiguration struct {
-	Token               string   `yaml:"token"  required:"true"`
-	Team                string   `yaml:"team"  required:"true"`
-	Org                 string   `yaml:"org"  required:"true"`
-	IgnoredPRUsers      []string `yaml:"ignoredPRUsers"`
-	IgnoredRepos        []string `yaml:"ignoredRepos"`
-	SecretKey           string   `yaml:"secretKey"  required:"true"`
-	IgnoredCommentUsers []string `yaml:"ignoredCommentUsers"`
-	IgnoredReviewUsers  []string `yaml:"ignoredReviewUsers"`
+	NotifyAssignedFluxPRs bool     `yaml:"notifyAssignedFluxPRs"`
+	Token                 string   `yaml:"token"  required:"true"`
+	Team                  string   `yaml:"team"  required:"true"`
+	Org                   string   `yaml:"org"  required:"true"`
+	IgnoredPRUsers        []string `yaml:"ignoredPRUsers"`
+	IgnoredRepos          []string `yaml:"ignoredRepos"`
+	SecretKey             string   `yaml:"secretKey"  required:"true"`
+	IgnoredCommentUsers   []string `yaml:"ignoredCommentUsers"`
+	IgnoredReviewUsers    []string `yaml:"ignoredReviewUsers"`
 }
 
 type SlackConfiguration struct {
@@ -52,4 +53,8 @@ type EmojiConfiguration struct {
 type GithubEmailToSlackEmail struct {
 	GithubEmail string `yaml:"githubEmail"`
 	SlackEmail  string `yaml:"slackEmail"`
+}
+
+func (configuration GitHubConfiguration) TracksAssignedFluxPRs(repository string) bool {
+	return configuration.NotifyAssignedFluxPRs && repository == "loveholidays/flux"
 }

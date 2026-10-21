@@ -10,9 +10,10 @@
 package mock_slack
 
 import (
+	slack "git-slack-bot/internal/slack"
 	reflect "reflect"
 
-	slack "github.com/slack-go/slack"
+	slack0 "github.com/slack-go/slack"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -20,6 +21,7 @@ import (
 type MockClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockClientMockRecorder
+	isgomock struct{}
 }
 
 // MockClientMockRecorder is the mock recorder for MockClient.
@@ -40,54 +42,54 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // AddReaction mocks base method.
-func (m *MockClient) AddReaction(arg0 string, arg1 slack.ItemRef) error {
+func (m *MockClient) AddReaction(name string, item slack0.ItemRef) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddReaction", arg0, arg1)
+	ret := m.ctrl.Call(m, "AddReaction", name, item)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddReaction indicates an expected call of AddReaction.
-func (mr *MockClientMockRecorder) AddReaction(arg0, arg1 any) *gomock.Call {
+func (mr *MockClientMockRecorder) AddReaction(name, item any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddReaction", reflect.TypeOf((*MockClient)(nil).AddReaction), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddReaction", reflect.TypeOf((*MockClient)(nil).AddReaction), name, item)
 }
 
 // GetConversationHistory mocks base method.
-func (m *MockClient) GetConversationHistory(arg0 *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error) {
+func (m *MockClient) GetConversationHistory(params *slack0.GetConversationHistoryParameters) (*slack0.GetConversationHistoryResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConversationHistory", arg0)
-	ret0, _ := ret[0].(*slack.GetConversationHistoryResponse)
+	ret := m.ctrl.Call(m, "GetConversationHistory", params)
+	ret0, _ := ret[0].(*slack0.GetConversationHistoryResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetConversationHistory indicates an expected call of GetConversationHistory.
-func (mr *MockClientMockRecorder) GetConversationHistory(arg0 any) *gomock.Call {
+func (mr *MockClientMockRecorder) GetConversationHistory(params any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationHistory", reflect.TypeOf((*MockClient)(nil).GetConversationHistory), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversationHistory", reflect.TypeOf((*MockClient)(nil).GetConversationHistory), params)
 }
 
 // GetUserByEmail mocks base method.
-func (m *MockClient) GetUserByEmail(arg0 string) (*slack.User, error) {
+func (m *MockClient) GetUserByEmail(email string) (*slack0.User, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserByEmail", arg0)
-	ret0, _ := ret[0].(*slack.User)
+	ret := m.ctrl.Call(m, "GetUserByEmail", email)
+	ret0, _ := ret[0].(*slack0.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetUserByEmail indicates an expected call of GetUserByEmail.
-func (mr *MockClientMockRecorder) GetUserByEmail(arg0 any) *gomock.Call {
+func (mr *MockClientMockRecorder) GetUserByEmail(email any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByEmail", reflect.TypeOf((*MockClient)(nil).GetUserByEmail), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByEmail", reflect.TypeOf((*MockClient)(nil).GetUserByEmail), email)
 }
 
 // PostMessage mocks base method.
-func (m *MockClient) PostMessage(arg0 string, arg1 ...slack.MsgOption) (string, string, error) {
+func (m *MockClient) PostMessage(channelID string, options ...slack0.MsgOption) (string, string, error) {
 	m.ctrl.T.Helper()
-	varargs := []any{arg0}
-	for _, a := range arg1 {
+	varargs := []any{channelID}
+	for _, a := range options {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "PostMessage", varargs...)
@@ -98,30 +100,31 @@ func (m *MockClient) PostMessage(arg0 string, arg1 ...slack.MsgOption) (string, 
 }
 
 // PostMessage indicates an expected call of PostMessage.
-func (mr *MockClientMockRecorder) PostMessage(arg0 any, arg1 ...any) *gomock.Call {
+func (mr *MockClientMockRecorder) PostMessage(channelID any, options ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{arg0}, arg1...)
+	varargs := append([]any{channelID}, options...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostMessage", reflect.TypeOf((*MockClient)(nil).PostMessage), varargs...)
 }
 
 // RemoveReaction mocks base method.
-func (m *MockClient) RemoveReaction(arg0 string, arg1 slack.ItemRef) error {
+func (m *MockClient) RemoveReaction(name string, item slack0.ItemRef) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RemoveReaction", arg0, arg1)
+	ret := m.ctrl.Call(m, "RemoveReaction", name, item)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RemoveReaction indicates an expected call of RemoveReaction.
-func (mr *MockClientMockRecorder) RemoveReaction(arg0, arg1 any) *gomock.Call {
+func (mr *MockClientMockRecorder) RemoveReaction(name, item any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveReaction", reflect.TypeOf((*MockClient)(nil).RemoveReaction), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveReaction", reflect.TypeOf((*MockClient)(nil).RemoveReaction), name, item)
 }
 
 // MockInteractor is a mock of Interactor interface.
 type MockInteractor struct {
 	ctrl     *gomock.Controller
 	recorder *MockInteractorMockRecorder
+	isgomock struct{}
 }
 
 // MockInteractorMockRecorder is the mock recorder for MockInteractor.
@@ -142,79 +145,79 @@ func (m *MockInteractor) EXPECT() *MockInteractorMockRecorder {
 }
 
 // AddReactionToMessage mocks base method.
-func (m *MockInteractor) AddReactionToMessage(arg0 string, arg1 *slack.Message) {
+func (m *MockInteractor) AddReactionToMessage(reaction string, message *slack0.Message) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "AddReactionToMessage", arg0, arg1)
+	m.ctrl.Call(m, "AddReactionToMessage", reaction, message)
 }
 
 // AddReactionToMessage indicates an expected call of AddReactionToMessage.
-func (mr *MockInteractorMockRecorder) AddReactionToMessage(arg0, arg1 any) *gomock.Call {
+func (mr *MockInteractorMockRecorder) AddReactionToMessage(reaction, message any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddReactionToMessage", reflect.TypeOf((*MockInteractor)(nil).AddReactionToMessage), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddReactionToMessage", reflect.TypeOf((*MockInteractor)(nil).AddReactionToMessage), reaction, message)
 }
 
 // GetMessage mocks base method.
-func (m *MockInteractor) GetMessage(arg0 string) (*slack.Message, error) {
+func (m *MockInteractor) GetMessage(messageKey string) (*slack0.Message, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMessage", arg0)
-	ret0, _ := ret[0].(*slack.Message)
+	ret := m.ctrl.Call(m, "GetMessage", messageKey)
+	ret0, _ := ret[0].(*slack0.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetMessage indicates an expected call of GetMessage.
-func (mr *MockInteractorMockRecorder) GetMessage(arg0 any) *gomock.Call {
+func (mr *MockInteractorMockRecorder) GetMessage(messageKey any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessage", reflect.TypeOf((*MockInteractor)(nil).GetMessage), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessage", reflect.TypeOf((*MockInteractor)(nil).GetMessage), messageKey)
 }
 
 // GetUserIDByEmail mocks base method.
-func (m *MockInteractor) GetUserIDByEmail(arg0 string) (string, error) {
+func (m *MockInteractor) GetUserIDByEmail(email string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserIDByEmail", arg0)
+	ret := m.ctrl.Call(m, "GetUserIDByEmail", email)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetUserIDByEmail indicates an expected call of GetUserIDByEmail.
-func (mr *MockInteractorMockRecorder) GetUserIDByEmail(arg0 any) *gomock.Call {
+func (mr *MockInteractorMockRecorder) GetUserIDByEmail(email any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserIDByEmail", reflect.TypeOf((*MockInteractor)(nil).GetUserIDByEmail), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserIDByEmail", reflect.TypeOf((*MockInteractor)(nil).GetUserIDByEmail), email)
 }
 
 // RemoveReactionFromMessage mocks base method.
-func (m *MockInteractor) RemoveReactionFromMessage(arg0 string, arg1 *slack.Message) {
+func (m *MockInteractor) RemoveReactionFromMessage(reaction string, message *slack0.Message) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RemoveReactionFromMessage", arg0, arg1)
+	m.ctrl.Call(m, "RemoveReactionFromMessage", reaction, message)
 }
 
 // RemoveReactionFromMessage indicates an expected call of RemoveReactionFromMessage.
-func (mr *MockInteractorMockRecorder) RemoveReactionFromMessage(arg0, arg1 any) *gomock.Call {
+func (mr *MockInteractorMockRecorder) RemoveReactionFromMessage(reaction, message any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveReactionFromMessage", reflect.TypeOf((*MockInteractor)(nil).RemoveReactionFromMessage), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveReactionFromMessage", reflect.TypeOf((*MockInteractor)(nil).RemoveReactionFromMessage), reaction, message)
 }
 
-// SendMessage mocks base method.
-func (m *MockInteractor) SendMessage(arg0 string) {
+// SendMessageOnce mocks base method.
+func (m *MockInteractor) SendMessageOnce(notification slack.Notification) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SendMessage", arg0)
+	m.ctrl.Call(m, "SendMessageOnce", notification)
 }
 
-// SendMessage indicates an expected call of SendMessage.
-func (mr *MockInteractorMockRecorder) SendMessage(arg0 any) *gomock.Call {
+// SendMessageOnce indicates an expected call of SendMessageOnce.
+func (mr *MockInteractorMockRecorder) SendMessageOnce(notification any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessage", reflect.TypeOf((*MockInteractor)(nil).SendMessage), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessageOnce", reflect.TypeOf((*MockInteractor)(nil).SendMessageOnce), notification)
 }
 
 // SendReply mocks base method.
-func (m *MockInteractor) SendReply(arg0 *slack.Message, arg1 string) {
+func (m *MockInteractor) SendReply(slackMessage *slack0.Message, message string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SendReply", arg0, arg1)
+	m.ctrl.Call(m, "SendReply", slackMessage, message)
 }
 
 // SendReply indicates an expected call of SendReply.
-func (mr *MockInteractorMockRecorder) SendReply(arg0, arg1 any) *gomock.Call {
+func (mr *MockInteractorMockRecorder) SendReply(slackMessage, message any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendReply", reflect.TypeOf((*MockInteractor)(nil).SendReply), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendReply", reflect.TypeOf((*MockInteractor)(nil).SendReply), slackMessage, message)
 }

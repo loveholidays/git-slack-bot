@@ -16,13 +16,19 @@ import (
 	sl "github.com/slack-go/slack"
 )
 
+var (
+	listenAndServe = (*http.Server).ListenAndServe
+	exitProcess    = os.Exit
+)
+
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
 	cfg, err := config_loader.LoadConfiguration[config.Configuration](os.Getenv("CONFIG_PATH"))
 	if err != nil {
 		slog.Error("Failed to load configuration", slog.Any("error", err))
-		os.Exit(1)
+		exitProcess(1)
+		return
 	}
 
 	externalSlackClient := sl.New(cfg.Slack.Token)
@@ -46,7 +52,7 @@ func main() {
 	if emojiConfiguration.Close == "" {
 		emojiConfiguration.Close = "x"
 	}
-	gitHandler := handler.NewGitHandler(slackConnector, userService, emojiConfiguration, cfg.GitHub.IgnoredRepos)
+	gitHandler := handler.NewGitHandler(slackConnector, userService, emojiConfiguration, cfg.GitHub)
 	webhookEventHandler := handler.NewWebhookEventHandler([]byte(cfg.GitHub.SecretKey), gitHandler)
 	http.HandleFunc("/git-event", webhookEventHandler.HandleWebhook)
 	http.HandleFunc("/", webhookEventHandler.HandleHeathCheck)
@@ -56,7 +62,7 @@ func main() {
 		ReadHeaderTimeout: time.Second * 3,
 	}
 
-	err = server.ListenAndServe()
+	err = listenAndServe(server)
 	if err != nil {
 		slog.Error("Server error", slog.Any("error", err))
 	}
