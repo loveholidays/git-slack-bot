@@ -8,7 +8,7 @@ git-slack-bot automatically posts your GitHub pull request messages to a Slack c
 - 💬 **Threaded comments** - PR review comments appear as threaded replies in Slack
 - 😀 **Emoji reactions** - Visual indicators for PR approvals, merges, and closures
 - 👥 **Team member mapping** - Maps GitHub users to Slack users for proper @mentions
-- 🎯 **Selective notifications** - Configure which users and events to track
+- 🎯 **Selective notifications** - Track PRs authored by your team, plus PRs in `loveholidays/flux` assigned to a team member. Assignments added after opening also trigger a notification. Drafts wait until ready for review, and repeated events reuse the existing Slack post.
 - 🔒 **Secure webhooks** - Validates GitHub webhook signatures for security
 
 ## Installation

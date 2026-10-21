@@ -23,6 +23,7 @@ import (
 	_ "embed"
 	"git-slack-bot/internal/config"
 	"git-slack-bot/internal/handler"
+	bot_slack "git-slack-bot/internal/slack"
 	mock_slack "git-slack-bot/internal/slack/mocks"
 	mock_user "git-slack-bot/internal/user/mocks"
 
@@ -72,7 +73,7 @@ var _ = Describe("HandleGitEvents", func() {
 			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), []string{"hotels-and-ancillaries"})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
-			slackMock.EXPECT().SendMessage(gomock.Any()).Times(0)
+			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
 			webHookHandler.HandlePullRequestEvent(prOpenedJSONData)
 		})
 
@@ -85,7 +86,7 @@ var _ = Describe("HandleGitEvents", func() {
 			expected := `<@123> [GS] Test slack id change:
 https://github.com/loveholidays/hotels-and-ancillaries/pull/808`
 
-			slackMock.EXPECT().SendMessage(expected)
+			slackMock.EXPECT().SendMessageOnce(gomock.Cond[bot_slack.Notification](func(notification bot_slack.Notification) bool { return notification.Text == expected }))
 			webHookHandler.HandlePullRequestEvent(prOpenedJSONData)
 		})
 
@@ -98,7 +99,7 @@ https://github.com/loveholidays/hotels-and-ancillaries/pull/808`
 			expected := `<@123> Moving duplicating configmaps to base:
 https://github.com/loveholidays/flux/pull/92504`
 
-			slackMock.EXPECT().SendMessage(expected)
+			slackMock.EXPECT().SendMessageOnce(gomock.Cond[bot_slack.Notification](func(notification bot_slack.Notification) bool { return notification.Text == expected }))
 			webHookHandler.HandlePullRequestEvent(prReadyForReviewJSONData)
 		})
 
@@ -141,7 +142,7 @@ https://github.com/loveholidays/flux/pull/92504`
 			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), []string{"frontier"})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
-			slackMock.EXPECT().SendMessage(gomock.Any()).Times(0)
+			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
 			webHookHandler.HandlePullRequestReviewEvent(prApprovedJSONData)
 		})
 
@@ -271,7 +272,7 @@ Looks good overall.`
 			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), []string{"yielding-ui"})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
-			slackMock.EXPECT().SendMessage(gomock.Any()).Times(0)
+			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
 			webHookHandler.HandlePullRequestReviewCommentEvent(prCommentJSONData)
 		})
 
@@ -310,7 +311,7 @@ Sorry, that's not allowed since https://adrs.lvh.systems/adr/20231205-container-
 			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), []string{"hotels-and-ancillaries"})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
-			slackMock.EXPECT().SendMessage(gomock.Any()).Times(0)
+			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
 			webHookHandler.HandleIssueCommentEvent(prIssueCommentJSONData)
 		})
 

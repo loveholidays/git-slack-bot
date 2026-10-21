@@ -22,11 +22,10 @@ package slack
 //go:generate mockgen -destination=./mocks/slack.go . Client,Interactor
 
 import (
-	"errors"
 	"git-slack-bot/internal/config"
 	"github.com/slack-go/slack"
 	"log/slog"
-	"strings"
+	"sync"
 )
 
 type Client interface {
@@ -38,7 +37,7 @@ type Client interface {
 }
 
 type Interactor interface {
-	SendMessage(message string)
+	SendMessageOnce(notification Notification)
 	SendReply(slackMessage *slack.Message, message string)
 	AddReactionToMessage(reaction string, message *slack.Message)
 	RemoveReactionFromMessage(reaction string, message *slack.Message)
@@ -47,8 +46,9 @@ type Interactor interface {
 }
 
 type Connector struct {
-	client    Client
-	channelID string
+	notificationMutex sync.Mutex
+	client            Client
+	channelID         string
 }
 
 func NewSlackConnector(cfg config.SlackConfiguration, client Client) *Connector {
@@ -87,19 +87,7 @@ func (sc *Connector) RemoveReactionFromMessage(reaction string, message *slack.M
 }
 
 func (sc *Connector) GetMessage(messageKey string) (*slack.Message, error) {
-	messages, err := sc.client.GetConversationHistory(&slack.GetConversationHistoryParameters{
-		ChannelID: sc.channelID,
-	})
-	if err != nil {
-		slog.Error("Failed to get conversation history", slog.Any("error", err))
-		return nil, err
-	}
-	for _, message := range messages.Messages {
-		if strings.Contains(message.Text, messageKey) {
-			return &message, nil
-		}
-	}
-	return nil, errors.New("could not find message")
+	return sc.findNotification(Notification{Key: messageKey})
 }
 
 func (sc *Connector) GetUserIDByEmail(email string) (string, error) {
