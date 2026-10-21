@@ -73,7 +73,7 @@ func sendAssignmentWebhook(t *testing.T) {
 	if _, err := signature.Write([]byte(body)); err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodPost, "/git-event", strings.NewReader(body))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/git-event", strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-GitHub-Event", "pull_request")
 	request.Header.Set("X-Hub-Signature-256", "sha256="+hex.EncodeToString(signature.Sum(nil)))
