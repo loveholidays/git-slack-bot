@@ -2,6 +2,8 @@ module git-slack-bot
 
 go 1.26.0
 
+toolchain go1.26.10
+
 require (
 	github.com/google/go-github/v56 v56.0.0
 	github.com/loveholidays/go-config-loader v0.0.0-20241211150814-dc186d50df8d
