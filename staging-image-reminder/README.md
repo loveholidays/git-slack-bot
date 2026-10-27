@@ -1,4 +1,4 @@
-# Shopping staging image reminder
+# Staging image reminder
 
 This one-shot job queries Prometheus for a team's containers running non-`prod-*`
 images and posts a grouped report to Slack. It was moved from Flux so application
@@ -8,16 +8,25 @@ Set `TEAM`, `PROMETHEUS_URL`, `SLACK_CHANNEL_ID`, and `SLACK_TOKEN` in the CronJ
 `TEAM` is required and selects the exact Kubernetes `team` label in both the image
 query and inventory check. It also supplies the report heading. `SLACK_CHANNEL_ID`
 selects the destination channel; neither the team nor the channel has a default.
-For Shopping, Flux passes `TEAM=shopping` and `SLACK_CHANNEL_ID=C0BQSACN6EB`.
 The reminder's own image is excluded independently of the CronJob/container name,
 alongside the listed infrastructure sidecars.
 
-Optional author
-attribution uses `GITHUB_TOKEN` with pull-request read access and `BOT_CONFIG_PATH`
-pointing to Shopping Bot's existing YAML configuration. The reminder reads only
-`slack.githubEmailToSlackEmail` from that file. Slack's `users:read.email` scope
-resolves those email addresses to mentions; missing mappings or lookup permissions
-fall back to the GitHub login.
+Other teams can use the existing [Flux CronJob values](https://github.com/loveholidays/flux/blob/e498de9061cff2f126fcd10e0437d0f4469fd2dc/overlays/staging-eu/packages/shopping-staging-image-reminder/values.yaml)
+and [Kustomization](https://github.com/loveholidays/flux/blob/e498de9061cff2f126fcd10e0437d0f4469fd2dc/overlays/staging-eu/packages/shopping-staging-image-reminder/kustomization.yaml)
+as a template. Reuse the published reminder image and configure your team's label,
+Prometheus endpoint, alert channel, schedule, and secret references. Register the
+CronJob in the relevant Flux Argo CD application list. For author mentions, update
+the ConfigMap file reference and webhook dependency to your bot's configuration.
+
+Each team must supply its own Slack bot and `SLACK_TOKEN`, and add that bot to its
+alert channel. The bot needs `chat:write` to post reports and `users:read.email` to
+resolve author mentions. The template's bot credentials belong to its owning team
+and should be replaced when adopting it.
+
+Optional author attribution uses `GITHUB_TOKEN` with pull-request read access and
+`BOT_CONFIG_PATH` pointing to your bot's YAML configuration. The reminder reads only
+`slack.githubEmailToSlackEmail` from that file to resolve email addresses to
+mentions; missing mappings or lookup permissions fall back to the GitHub login.
 
 Internal image names map to repositories of the same name, except
 `flight-club-radar` and `flight-club-ski-jump`, which both map to `flight-club`.
