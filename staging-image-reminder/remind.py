@@ -15,14 +15,15 @@ import yaml
 QUERY = '''
 max by (lh_cluster, namespace, label_app, container, image_spec) (
   kube_pod_container_info{
-    container!~"metrics|nginx|cloud-sql-proxy|ship-heap-dump|redis-node|shopping-staging-image-reminder",
+    container!~"metrics|nginx|cloud-sql-proxy|ship-heap-dump|redis-node",
+    image_spec!~"eu[.]gcr[.]io/loveholidays-ci-cd/shopping-staging-image-reminder(:|@).*",
     image_spec!="",
     image_spec!~".*:prod-.*"
   }
   * on (lh_cluster, namespace, pod, uid)
     group_left(label_app)
   max by (lh_cluster, namespace, pod, uid, label_app) (
-    kube_pod_labels{label_team="shopping"}
+    kube_pod_labels{label_team=%s}
   )
 )
 '''
@@ -128,8 +129,9 @@ def image_lines(results, authors):
         yield line
 
 
-def messages(results, authors=None):
-    heading = '*Shopping staging: non-standard images*\nEngineers testing these builds: please restore a `prod-*` image when finished.\n'
+def messages(results, team, authors=None):
+    team_name = html.escape(team.capitalize(), quote=False)
+    heading = f'*{team_name} staging: non-standard images*\nEngineers testing these builds: please restore a `prod-*` image when finished.\n'
     text = heading
     for line in image_lines(results, authors):
         if len(text) + len(line) > 3500:
@@ -160,16 +162,20 @@ def post_message(text):
 
 
 def main():
-    results = query(QUERY)
+    team = os.environ['TEAM']
+    if not team:
+        raise ValueError('TEAM must not be empty')
+    team_label = json.dumps(team, ensure_ascii=False)
+    results = query(QUERY % team_label)
     if not results:
         # Empty results are safe only when both inventory metrics are available.
-        inventory = query('count(kube_pod_container_info{image_spec!=""}) > 0 and on() count(kube_pod_labels{label_team="shopping"}) > 0')
+        inventory = query('count(kube_pod_container_info{image_spec!=""}) > 0 and on() count(kube_pod_labels{label_team=%s}) > 0' % team_label)
         if not inventory:
-            raise RuntimeError('Shopping image inventory is unavailable; cannot confirm standard tags')
-        print('No non-standard Shopping staging images.')
+            raise RuntimeError(f'{team} image inventory is unavailable; cannot confirm standard tags')
+        print(f'No non-standard {team} staging images.')
         return
     authors = load_authors()
-    for text in messages(results, authors):
+    for text in messages(results, team, authors):
         post_message(text)
     print(f'Reported {len(results)} non-standard image entries.')
 

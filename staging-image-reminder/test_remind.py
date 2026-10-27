@@ -4,6 +4,7 @@ import os
 import unittest
 from unittest.mock import mock_open, patch
 from urllib.error import URLError
+from urllib.parse import parse_qs, urlparse
 
 import remind
 
@@ -21,6 +22,11 @@ def image(app='payment-service', namespace='web', spec='service:feature'):
 
 
 class ReminderTest(unittest.TestCase):
+    def setUp(self):
+        env = patch.dict(os.environ, {'TEAM': 'shopping'})
+        env.start()
+        self.addCleanup(env.stop)
+
     @patch.dict(os.environ, {'PROMETHEUS_URL': 'http://prometheus:9090', 'SLACK_CHANNEL_ID': 'C0BQSACN6EB', 'SLACK_TOKEN': 'test-token'})
     def test_posts_grouped_deduplicated_images_to_staging_channel(self):
         rows = [image(), image(), image('flight-club-radar', 'packages', 'sha256:abc')]
@@ -62,20 +68,52 @@ class ReminderTest(unittest.TestCase):
 
     def test_large_reports_are_split_without_losing_images(self):
         rows = [image(f'service-{i}', spec=f'registry/service-{i}:feature') for i in range(100)]
-        messages = list(remind.messages(rows))
+        messages = list(remind.messages(rows, 'shopping'))
         self.assertGreater(len(messages), 1)
         self.assertTrue(all(len(message) <= 3500 for message in messages))
         self.assertEqual(sum(message.count('\n• ') for message in messages), 100)
 
     def test_image_names_cannot_create_slack_mentions(self):
-        text = next(remind.messages([image(spec='service:<@U123>')]))
+        text = next(remind.messages([image(spec='service:<@U123>')], 'shopping'))
         self.assertNotIn('<@U123>', text)
         self.assertIn('&lt;@U123&gt;', text)
+
+    @patch.dict(os.environ, {'TEAM': 'checkout', 'PROMETHEUS_URL': 'http://prometheus:9090', 'SLACK_CHANNEL_ID': 'CCHECKOUT', 'SLACK_TOKEN': 'test-token'})
+    def test_team_and_channel_are_passed_by_the_job(self):
+        with patch('remind.urlopen', side_effect=[response(vector([image()])), response({'ok': True})]) as request:
+            remind.main()
+        expression = parse_qs(urlparse(request.call_args_list[0].args[0]).query)['query'][0]
+        self.assertIn('label_team="checkout"', expression)
+        body = json.loads(request.call_args_list[1].args[0].data)
+        self.assertEqual(body['channel'], 'CCHECKOUT')
+        self.assertIn('*Checkout staging:', body['text'])
+        self.assertNotIn('Shopping', body['text'])
+
+    @patch.dict(os.environ, {'TEAM': 'checkout"} or vector(1) #', 'PROMETHEUS_URL': 'http://prometheus:9090'})
+    def test_both_queries_escape_the_configured_team_label(self):
+        with patch('remind.urlopen', side_effect=[response(vector([])), response(vector([{'value': [0, '1']}]))]) as request:
+            remind.main()
+        for call in request.call_args_list:
+            expression = parse_qs(urlparse(call.args[0]).query)['query'][0]
+            self.assertIn('label_team=' + json.dumps(os.environ['TEAM']), expression)
+            self.assertNotIn('label_team="shopping"', expression)
+
+    def test_team_name_cannot_create_slack_mentions(self):
+        text = next(remind.messages([image()], '<@U123>'))
+        self.assertNotIn('<@', text)
+        self.assertIn('&lt;', text)
+
+    def test_missing_or_empty_team_fails_before_querying(self):
+        for env, failure in (({}, KeyError), ({'TEAM': ''}, ValueError)):
+            with self.subTest(env=env), patch.dict(os.environ, env, clear=True), patch('remind.urlopen') as request:
+                with self.assertRaises(failure):
+                    remind.main()
+                request.assert_not_called()
 
 
 class AuthorsTest(unittest.TestCase):
     def setUp(self):
-        self.env = patch.dict(os.environ, {'GITHUB_TOKEN': 'github-test', 'SLACK_TOKEN': 'slack-test'})
+        self.env = patch.dict(os.environ, {'GITHUB_TOKEN': 'github-test', 'SLACK_TOKEN': 'slack-test', 'TEAM': 'shopping'})
         self.env.start()
         self.addCleanup(self.env.stop)
         self.authors = remind.Authors({'slack': {'githubEmailToSlackEmail': [
@@ -88,7 +126,7 @@ class AuthorsTest(unittest.TestCase):
 
     def test_branch_tag_maps_both_apps_to_one_repo_and_mentions_pr_author(self):
         with patch('remind.urlopen', side_effect=[response([self.pr]), response({'ok': True, 'user': {'id': 'UJMJ26A48'}})]) as request:
-            messages = list(remind.messages([image(spec=self.spec), image('flight-club-radar', spec=self.spec.replace('ski-jump', 'radar'))], self.authors))
+            messages = list(remind.messages([image(spec=self.spec), image('flight-club-radar', spec=self.spec.replace('ski-jump', 'radar'))], 'shopping', self.authors))
         self.assertEqual(request.call_count, 2)  # Cache the repository PRs and Slack user across images.
         self.assertIn('/repos/loveholidays/flight-club/pulls?', request.call_args_list[0].args[0].full_url)
         self.assertEqual(request.call_args_list[0].args[0].get_header('Authorization'), 'Bearer github-test')
@@ -120,7 +158,7 @@ class AuthorsTest(unittest.TestCase):
     def test_lookup_failure_does_not_drop_the_image_report(self):
         failure = URLError('GitHub unavailable')
         with patch('remind.urlopen', side_effect=failure):
-            text = next(remind.messages([image(spec=self.spec)], self.authors))
+            text = next(remind.messages([image(spec=self.spec)], 'shopping', self.authors))
         self.assertIn(self.spec, text)
         self.assertNotIn('<@', text)
 
@@ -152,7 +190,7 @@ class AuthorsTest(unittest.TestCase):
     def test_author_lookup_budget_does_not_block_report(self):
         self.authors.deadline = 0
         with patch('remind.urlopen') as request:
-            text = next(remind.messages([image(spec=self.spec)], self.authors))
+            text = next(remind.messages([image(spec=self.spec)], 'shopping', self.authors))
         request.assert_not_called()
         self.assertIn(self.spec, text)
 
