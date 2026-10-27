@@ -1,0 +1,20 @@
+name: Staging image reminder
+on:
+  push:
+    paths:
+      - staging-image-reminder/**
+      - .github/workflows/staging-image-reminder.yaml
+  pull_request:
+    paths:
+      - staging-image-reminder/**
+      - .github/workflows/staging-image-reminder.yaml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r staging-image-reminder/requirements.txt
+      - run: python -m unittest discover -s staging-image-reminder -p 'test_*.py'
