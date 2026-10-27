@@ -1,4 +1,4 @@
-FROM eu.gcr.io/loveholidays-ci-cd/python:3.13-slim@sha256:a1cb4989abf74fae1d8927cae2cff758f84b12586e701802bba3272b703899f3
+FROM europe-docker.pkg.dev/loveholidays-ci-cd/external-images-virtual/python:3.13-slim@sha256:fea139ecc0ab98360ead50b38872df6d42cf3503bec83215461224cbef0c8269
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
