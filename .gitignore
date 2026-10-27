@@ -34,3 +34,4 @@ vendor/
 go.work
 go.work.sum
 .tool-versions
+__pycache__/
