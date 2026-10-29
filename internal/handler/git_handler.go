@@ -153,7 +153,9 @@ func (g *GitHandler) HandlePullRequestReviewEvent(body []byte) {
 	case submitted:
 		g.submitReview(pullRequest, event.Review)
 	case dismissed:
-		g.dismissReview(pullRequest)
+		if event.Review.GetUser().GetType() != "Bot" {
+			g.dismissReview(pullRequest)
+		}
 	}
 }
 
@@ -164,7 +166,7 @@ func (g *GitHandler) submitReview(pullRequest *gh.PullRequest, review *gh.PullRe
 		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
 		return
 	}
-	if review.GetState() == approved {
+	if review.GetState() == approved && review.GetUser().GetType() != "Bot" {
 		g.slackConnector.AddReactionToMessage(g.emoji.Approve, slackMessage)
 	}
 	if review.GetBody() != "" {

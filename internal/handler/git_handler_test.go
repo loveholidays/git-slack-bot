@@ -28,6 +28,7 @@ import (
 	mock_slack "git-slack-bot/internal/slack/mocks"
 	mock_user "git-slack-bot/internal/user/mocks"
 
+	gh "github.com/google/go-github/v56/github"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/slack-go/slack"
@@ -140,6 +141,32 @@ https://github.com/loveholidays/flux/pull/92504`
 	})
 
 	Context("HandlePullRequestReviewEvent", func() {
+		DescribeTable("bot reviews do not change the approved reaction", func(login, action string) {
+			var event gh.PullRequestReviewEvent
+			Expect(json.Unmarshal(prApprovedJSONData, &event)).To(Succeed())
+			event.Action = gh.String(action)
+			event.Review.User = &gh.User{Login: gh.String(login), Type: gh.String("Bot")}
+			event.Review.Body = gh.String("Automated review")
+			body, err := json.Marshal(event)
+			Expect(err).NotTo(HaveOccurred())
+
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
+			userMock.EXPECT().IsIgnoredReviewUser(login).Return(false)
+			if action == "submitted" {
+				parent := &slack.Message{}
+				slackMock.EXPECT().GetMessage(gomock.Any()).Return(parent, nil)
+				userMock.EXPECT().GetUserDescriptor(login).Return(login)
+				slackMock.EXPECT().SendReply(parent, login+" left a <"+event.Review.GetHTMLURL()+"|review>:\nAutomated review")
+			}
+			webHookHandler.HandlePullRequestReviewEvent(body)
+		},
+			Entry("CodeScene approval", "codescene-access[bot]", "submitted"),
+			Entry("Codex approval", "chatgpt-codex-connector[bot]", "submitted"),
+			Entry("Copilot approval", "copilot-pull-request-reviewer[bot]", "submitted"),
+			Entry("dismissed bot approval", "codescene-access[bot]", "dismissed"),
+		)
+
 		It("should no-op if coming from a ignored repo", func() {
 			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.GitHubConfiguration{IgnoredRepos: []string{"frontier"}})
 
