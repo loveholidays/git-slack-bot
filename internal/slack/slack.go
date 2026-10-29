@@ -29,6 +29,9 @@ import (
 )
 
 type Client interface {
+	GetConversationReplies(params *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error)
+	UpdateMessage(channelID, timestamp string, options ...slack.MsgOption) (string, string, string, error)
+	DeleteMessage(channelID, timestamp string) (string, string, error)
 	GetConversationHistory(params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	PostMessage(channelID string, options ...slack.MsgOption) (string, string, error)
 	AddReaction(name string, item slack.ItemRef) error
@@ -39,6 +42,8 @@ type Client interface {
 type Interactor interface {
 	SendMessageOnce(notification Notification)
 	SendReply(slackMessage *slack.Message, message string)
+	UpdateReply(parent *slack.Message, commentURL, message string)
+	DeleteReply(parent *slack.Message, commentURL string)
 	AddReactionToMessage(reaction string, message *slack.Message)
 	RemoveReactionFromMessage(reaction string, message *slack.Message)
 	GetMessage(messageKey string) (*slack.Message, error)

@@ -21,6 +21,7 @@ package handler_test
 
 import (
 	_ "embed"
+	"encoding/json"
 	"git-slack-bot/internal/config"
 	"git-slack-bot/internal/handler"
 	bot_slack "git-slack-bot/internal/slack"
@@ -28,6 +29,7 @@ import (
 	mock_user "git-slack-bot/internal/user/mocks"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/slack-go/slack"
 	"go.uber.org/mock/gomock"
 )
@@ -266,6 +268,48 @@ Looks good overall.`
 			webHookHandler.HandlePullRequestReviewEvent(prReviewDismissedJSONData)
 		})
 	})
+
+	DescribeTable("handles comment actions without posting duplicate replies", func(body []byte, action string, isIssueComment bool) {
+		var event map[string]json.RawMessage
+		Expect(json.Unmarshal(body, &event)).To(Succeed())
+		actionJSON, err := json.Marshal(action)
+		Expect(err).NotTo(HaveOccurred())
+		event["action"] = actionJSON
+		body, err = json.Marshal(event)
+		Expect(err).NotTo(HaveOccurred())
+
+		webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+		if action == "edited" || action == "deleted" {
+			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
+			userMock.EXPECT().IsIgnoredCommentUser(gomock.Any()).Return(false)
+			parent := &slack.Message{}
+			slackMock.EXPECT().GetMessage(gomock.Any()).Return(parent, nil)
+			commentURL := "https://github.com/loveholidays/yielding-ui/pull/61#discussion_r1425573584"
+			if isIssueComment {
+				commentURL = "https://github.com/loveholidays/hotels-and-ancillaries/pull/1015#issuecomment-1924011855"
+			}
+			if action == "edited" {
+				userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("<@123>")
+				slackMock.EXPECT().UpdateReply(parent, commentURL, gomock.Any())
+			} else {
+				slackMock.EXPECT().DeleteReply(parent, commentURL)
+			}
+		}
+		if isIssueComment {
+			webHookHandler.HandleIssueCommentEvent(body)
+		} else {
+			webHookHandler.HandlePullRequestReviewCommentEvent(body)
+		}
+	},
+		Entry("edited inline comment", prCommentJSONData, "edited", false),
+		Entry("deleted inline comment", prCommentJSONData, "deleted", false),
+		Entry("inline comment without action", prCommentJSONData, "", false),
+		Entry("unknown inline comment action", prCommentJSONData, "unknown", false),
+		Entry("edited top-level comment", prIssueCommentJSONData, "edited", true),
+		Entry("deleted top-level comment", prIssueCommentJSONData, "deleted", true),
+		Entry("top-level comment without action", prIssueCommentJSONData, "", true),
+		Entry("unknown top-level comment action", prIssueCommentJSONData, "unknown", true),
+	)
 
 	Context("HandlePullRequestReviewCommentEvent", func() {
 		It("should no-op if coming from a ignored repo", func() {
