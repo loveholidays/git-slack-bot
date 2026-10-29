@@ -1,4 +1,4 @@
-FROM europe-docker.pkg.dev/loveholidays-ci-cd/external-images-virtual/python:3.13-slim@sha256:fea139ecc0ab98360ead50b38872df6d42cf3503bec83215461224cbef0c8269
+FROM europe-docker.pkg.dev/loveholidays-ci-cd/external-images-virtual/python:3.13.18-slim@sha256:aaf08c5490d52cd92bc27142a5215b1e47355a5eaf9adfad2a0fbc022d0b5490
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
