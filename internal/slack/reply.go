@@ -63,17 +63,34 @@ func (sc *Connector) findReply(parent *slack.Message, commentURL string) (*slack
 		if err != nil {
 			return nil, err
 		}
-		for _, message := range messages {
-			isSameBot := parent.BotID != "" && message.BotID == parent.BotID
-			isSameUser := parent.User != "" && message.User == parent.User
-			header, _, _ := strings.Cut(message.Text, "\n")
-			if message.Timestamp != parent.Timestamp && (isSameBot || isSameUser) && strings.Contains(header, "<"+commentURL+"|comment>") {
-				return &message, nil
-			}
+		if reply := findReplyInMessages(messages, parent, commentURL); reply != nil {
+			return reply, nil
 		}
 		if cursor == "" {
 			return nil, errMessageNotFound
 		}
 		parameters.Cursor = cursor
 	}
+}
+
+func findReplyInMessages(messages []slack.Message, parent *slack.Message, commentURL string) *slack.Message {
+	for _, message := range messages {
+		if message.Timestamp == parent.Timestamp {
+			continue
+		}
+		if !hasSameMessageAuthor(parent, &message) {
+			continue
+		}
+		header, _, _ := strings.Cut(message.Text, "\n")
+		if strings.Contains(header, "<"+commentURL+"|comment>") {
+			return &message
+		}
+	}
+	return nil
+}
+
+func hasSameMessageAuthor(parent, message *slack.Message) bool {
+	isSameBot := parent.BotID != "" && message.BotID == parent.BotID
+	isSameUser := parent.User != "" && message.User == parent.User
+	return isSameBot || isSameUser
 }
