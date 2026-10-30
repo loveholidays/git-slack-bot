@@ -78,7 +78,7 @@ func TestCommentReplyLifecycleAcrossRestarts(t *testing.T) {
 	newConnector().DeleteReply(parent, commentURL)
 	newConnector().DeleteReply(parent, commentURL)
 	newConnector().UpdateReply(parent, commentURL, updated)
-	if posts != 1 || edits != 1 || deletes != 1 {
+	if counts := [3]int{posts, edits, deletes}; counts != [3]int{1, 1, 1} {
 		t.Fatalf("expected one post, edit and delete; got %d, %d, %d", posts, edits, deletes)
 	}
 }
