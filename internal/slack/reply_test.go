@@ -92,8 +92,14 @@ func TestCommentReplyLookupPaginatesAndMatchesBotAndExactURL(t *testing.T) {
 			const url = "https://github.com/loveholidays/example/pull/42#discussion_r100"
 			link := "<" + url + "|comment>"
 			client.EXPECT().GetConversationReplies(gomock.Any()).DoAndReturn(func(params *sl.GetConversationRepliesParameters) ([]sl.Message, bool, string, error) {
-				if params.ChannelID != "reviews" || params.Timestamp != parent.Timestamp || params.Cursor != "" {
-					t.Errorf("unexpected initial lookup: %+v", params)
+				if params.ChannelID != "reviews" {
+					t.Errorf("unexpected lookup channel: %s", params.ChannelID)
+				}
+				if params.Timestamp != parent.Timestamp {
+					t.Errorf("unexpected lookup timestamp: %s", params.Timestamp)
+				}
+				if params.Cursor != "" {
+					t.Errorf("unexpected initial cursor: %s", params.Cursor)
 				}
 				return []sl.Message{
 					{Msg: sl.Msg{Timestamp: "123.001", User: "human", Text: link}},
