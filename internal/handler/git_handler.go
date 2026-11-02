@@ -33,6 +33,9 @@ import (
 )
 
 const (
+	created        string = "created"
+	edited         string = "edited"
+	deleted        string = "deleted"
 	closed         string = "closed"
 	opened         string = "opened"
 	assigned       string = "assigned"
@@ -150,7 +153,9 @@ func (g *GitHandler) HandlePullRequestReviewEvent(body []byte) {
 	case submitted:
 		g.submitReview(pullRequest, event.Review)
 	case dismissed:
-		g.dismissReview(pullRequest)
+		if event.Review.GetUser().GetType() != "Bot" {
+			g.dismissReview(pullRequest)
+		}
 	}
 }
 
@@ -161,7 +166,7 @@ func (g *GitHandler) submitReview(pullRequest *gh.PullRequest, review *gh.PullRe
 		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
 		return
 	}
-	if review.GetState() == approved {
+	if review.GetState() == approved && review.GetUser().GetType() != "Bot" {
 		g.slackConnector.AddReactionToMessage(g.emoji.Approve, slackMessage)
 	}
 	if review.GetBody() != "" {
@@ -194,7 +199,7 @@ func (g *GitHandler) HandleIssueCommentEvent(body []byte) {
 
 func (g *GitHandler) handleCommentEvent(body []byte) {
 	event := parseGitEvent[commentEvent](body)
-	if event == nil {
+	if event == nil || !slices.Contains([]string{created, edited, deleted}, event.GetAction()) {
 		return
 	}
 	pullRequest := event.GetPullRequest()
@@ -208,15 +213,19 @@ func (g *GitHandler) handleCommentEvent(body []byte) {
 	if !g.isRelevantComment(event.Repo, pullRequest.User, pullRequest.Assignees, commentAuthor) {
 		return
 	}
+	if event.GetAction() == deleted {
+		g.sendCommentReply(pullRequest.GetHTMLURL(), event.GetComment().GetHTMLURL(), deleted, "")
+		return
+	}
 	userDescriptor := g.userService.GetUserDescriptor(commentAuthor)
 	if event.Issue != nil {
 		comment := &gh.IssueComment{User: event.Comment.User, Body: event.Comment.Body, HTMLURL: event.Comment.HTMLURL}
 		message := g.messageBuilder.BuildIssueCommentMessage(userDescriptor, gh.IssueCommentEvent{Comment: comment})
-		g.sendCommentReply(pullRequest.GetHTMLURL(), message)
+		g.sendCommentReply(pullRequest.GetHTMLURL(), event.GetComment().GetHTMLURL(), event.GetAction(), message)
 		return
 	}
 	message := g.messageBuilder.BuildPRCommentMessage(userDescriptor, event.PullRequestReviewCommentEvent)
-	g.sendCommentReply(pullRequest.GetHTMLURL(), message)
+	g.sendCommentReply(pullRequest.GetHTMLURL(), event.GetComment().GetHTMLURL(), event.GetAction(), message)
 }
 
 func (g *GitHandler) isRelevantComment(repository *gh.Repository, author *gh.User, assignees []*gh.User, commentAuthor string) bool {
@@ -225,14 +234,21 @@ func (g *GitHandler) isRelevantComment(repository *gh.Repository, author *gh.Use
 		!g.userService.IsIgnoredCommentUser(commentAuthor)
 }
 
-func (g *GitHandler) sendCommentReply(pullRequestURL, message string) {
+func (g *GitHandler) sendCommentReply(pullRequestURL, commentURL, action, message string) {
 	messageKey := fmt.Sprintf("<%s>", pullRequestURL)
 	slackMessage, err := g.slackConnector.GetMessage(messageKey)
 	if err != nil {
 		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
 		return
 	}
-	g.slackConnector.SendReply(slackMessage, message)
+	switch action {
+	case created:
+		g.slackConnector.SendReply(slackMessage, message)
+	case edited:
+		g.slackConnector.UpdateReply(slackMessage, commentURL, message)
+	case deleted:
+		g.slackConnector.DeleteReply(slackMessage, commentURL)
+	}
 }
 
 func (g *GitHandler) isIgnoredRepo(repoName string) bool {
