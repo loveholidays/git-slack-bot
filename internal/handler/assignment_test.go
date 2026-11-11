@@ -49,6 +49,7 @@ func TestAssigneeNotifications(t *testing.T) {
 		draft            bool
 		state            string
 		wantNotification bool
+		recipients       []string
 		disabled         bool
 	}{
 		{name: "default author notification", repository: "loveholidays/backend", author: "member", action: "opened", disabled: true, wantNotification: true},
@@ -56,11 +57,11 @@ func TestAssigneeNotifications(t *testing.T) {
 		{name: "default Flux assignee ignored later", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "assigned", assignedUser: "member", disabled: true},
 		{name: "default Flux author assignment ignored", repository: "loveholidays/flux", author: "member", assignees: []string{"member"}, action: "assigned", assignedUser: "member", disabled: true},
 		{name: "existing team author", repository: "loveholidays/backend", author: "member", action: "opened", wantNotification: true},
-		{name: "Flux team assignee at creation", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "opened", wantNotification: true},
-		{name: "Flux team assignee added later", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "assigned", assignedUser: "member", wantNotification: true},
-		{name: "Flux team assignee ready for review", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "ready_for_review", wantNotification: true},
-		{name: "multiple Flux assignees", repository: "loveholidays/flux", author: "external", assignees: []string{"external", "member", "another-member"}, action: "opened", wantNotification: true},
-		{name: "team author and assignee", repository: "loveholidays/flux", author: "member", assignees: []string{"member"}, action: "opened", wantNotification: true},
+		{name: "Flux team assignee at creation", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "opened", wantNotification: true, recipients: []string{"member"}},
+		{name: "Flux team assignee added later", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "assigned", assignedUser: "member", wantNotification: true, recipients: []string{"member"}},
+		{name: "Flux team assignee ready for review", repository: "loveholidays/flux", author: "external", assignees: []string{"member"}, action: "ready_for_review", wantNotification: true, recipients: []string{"member"}},
+		{name: "multiple Flux assignees", repository: "loveholidays/flux", author: "external", assignees: []string{"external", "member", "another-member"}, action: "opened", wantNotification: true, recipients: []string{"member", "another-member"}},
+		{name: "team author and assignee", repository: "loveholidays/flux", author: "member", assignees: []string{"member"}, action: "opened", wantNotification: true, recipients: []string{"member"}},
 		{name: "non Flux assignment", repository: "loveholidays/backend", author: "external", assignees: []string{"member"}, action: "opened"},
 		{name: "other owner Flux repository", repository: "another-org/flux", author: "external", assignees: []string{"member"}, action: "opened"},
 		{name: "Flux non team assignee", repository: "loveholidays/flux", author: "external", assignees: []string{"external"}, action: "opened"},
@@ -85,28 +86,8 @@ func TestAssigneeNotifications(t *testing.T) {
 				Assignee:    &gh.User{Login: gh.String(testCase.assignedUser)},
 			}
 			if testCase.wantNotification {
-				authorDescriptor := testCase.author
-				if testCase.author == "member" {
-					authorDescriptor = "<@member>"
-					slackMock.EXPECT().GetUserIDByEmail("member@example.com").Return("member", nil).AnyTimes()
-				}
-				count := 1
-				if !testCase.disabled && testCase.repository == "loveholidays/flux" {
-					count = 0
-					for _, login := range testCase.assignees {
-						email := map[string]string{"member": "member@example.com", "another-member": "another@example.com"}[login]
-						if email == "" {
-							continue
-						}
-						count++
-						slackMock.EXPECT().GetUserIDByEmail(email).Return(login, nil).AnyTimes()
-						slackMock.EXPECT().DirectMessage(login).Return(slackMock, nil)
-					}
-					if count == 0 {
-						count = 1
-					}
-				}
-				slackMock.EXPECT().SendMessageOnce(bot_slack.Notification{Key: "<https://github.com/loveholidays/flux/pull/42>", Text: fmt.Sprintf("%s Update deployment:\nhttps://github.com/loveholidays/flux/pull/42", authorDescriptor), CreatedAt: pullRequest.GetCreatedAt().Time}).Times(count)
+				expectation := assignmentNotificationExpectation{author: testCase.author, recipients: testCase.recipients}
+				expectation.expect(slackMock, pullRequest)
 			}
 			gitHandler.HandlePullRequestEvent(assignmentJSON(t, event))
 		})
@@ -270,7 +251,7 @@ func TestFluxDirectMessageFailuresDoNotPostToChannel(t *testing.T) {
 func TestFluxNotifiesEachAssigneeInSeparateDirectMessage(t *testing.T) {
 	controller := gomock.NewController(t)
 	channel := mock_slack.NewMockInteractor(controller)
-	mappings := []config.GithubEmailToSlackEmail{}
+	mappings := make([]config.GithubEmailToSlackEmail, 0, 2)
 	for _, login := range []string{"first", "second"} {
 		mappings = append(mappings, config.GithubEmailToSlackEmail{GithubEmail: login, SlackEmail: login + "@example.com"})
 		direct := mock_slack.NewMockInteractor(controller)
@@ -281,4 +262,23 @@ func TestFluxNotifiesEachAssigneeInSeparateDirectMessage(t *testing.T) {
 	users := user.NewService(channel, []string{"first", "second"}, mappings, nil, nil)
 	gitHandler := handler.NewGitHandler(channel, users, validEmojis(), config.GitHubConfiguration{NotifyAssignedFluxPRs: true})
 	gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("opened"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: assignmentPullRequest("external", []string{"first", "second", "first", "external"})}))
+}
+
+type assignmentNotificationExpectation struct {
+	author     string
+	recipients []string
+}
+
+func (expectation assignmentNotificationExpectation) expect(connector *mock_slack.MockInteractor, pullRequest *gh.PullRequest) {
+	authorDescriptor := expectation.author
+	if expectation.author == "member" {
+		authorDescriptor = "<@member>"
+		connector.EXPECT().GetUserIDByEmail("member@example.com").Return("member", nil).AnyTimes()
+	}
+	for _, login := range expectation.recipients {
+		email := map[string]string{"member": "member@example.com", "another-member": "another@example.com"}[login]
+		connector.EXPECT().GetUserIDByEmail(email).Return(login, nil).AnyTimes()
+		connector.EXPECT().DirectMessage(login).Return(connector, nil)
+	}
+	connector.EXPECT().SendMessageOnce(bot_slack.Notification{Key: "<https://github.com/loveholidays/flux/pull/42>", Text: fmt.Sprintf("%s Update deployment:\nhttps://github.com/loveholidays/flux/pull/42", authorDescriptor), CreatedAt: pullRequest.GetCreatedAt().Time}).Times(max(1, len(expectation.recipients)))
 }

@@ -89,35 +89,26 @@ type startupTransport struct {
 }
 
 func (transport *startupTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	var body string
-	switch request.URL.Path {
-	case "/orgs/loveholidays":
-		body = `{"id":1}`
-	case "/orgs/loveholidays/teams":
-		body = `[{"id":2,"name":"Trading OS"}]`
-	case "/organizations/1/team/2/members":
-		body = `[{"login":"member"}]`
-	case "/api/users.lookupByEmail":
-		body = `{"ok":true,"user":{"id":"member-id"}}`
-	case "/api/conversations.open":
-		if request.FormValue("users") != "member-id" {
-			return nil, fmt.Errorf("unexpected DM recipient")
-		}
-		body = `{"ok":true,"channel":{"id":"direct-message"}}`
-	case "/api/conversations.history":
-		if request.FormValue("channel") != "direct-message" {
-			return nil, fmt.Errorf("unexpected history channel")
-		}
-		body = `{"ok":true,"messages":[]}`
-	case "/api/chat.postMessage":
-		if request.FormValue("channel") != "direct-message" {
-			return nil, fmt.Errorf("unexpected post channel")
-		}
-		transport.posts++
-		body = `{"ok":true,"channel":"direct-message","ts":"123.456"}`
-	default:
+	if err := validateStartupSlackDestination(request); err != nil {
+		return nil, err
+	}
+	responses := map[string]string{
+		"/orgs/loveholidays":              `{"id":1}`,
+		"/orgs/loveholidays/teams":        `[{"id":2,"name":"Trading OS"}]`,
+		"/organizations/1/team/2/members": `[{"login":"member"}]`,
+		"/api/users.lookupByEmail":        `{"ok":true,"user":{"id":"member-id"}}`,
+		"/api/conversations.open":         `{"ok":true,"channel":{"id":"direct-message"}}`,
+		"/api/conversations.history":      `{"ok":true,"messages":[]}`,
+		"/api/chat.postMessage":           `{"ok":true,"channel":"direct-message","ts":"123.456"}`,
+	}
+	body, found := responses[request.URL.Path]
+	if !found {
 		return nil, fmt.Errorf("unexpected outbound request: %s", request.URL)
 	}
+	if request.URL.Path == "/api/chat.postMessage" {
+		transport.posts++
+	}
+
 	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(body)), Request: request}, nil
 }
 
@@ -131,4 +122,18 @@ func TestInvalidConfiguration(t *testing.T) {
 	if exitCode != 1 {
 		t.Errorf("expected exit status 1, got %d", exitCode)
 	}
+}
+
+func validateStartupSlackDestination(request *http.Request) error {
+	switch request.URL.Path {
+	case "/api/conversations.open":
+		if request.FormValue("users") != "member-id" {
+			return fmt.Errorf("unexpected DM recipient")
+		}
+	case "/api/conversations.history", "/api/chat.postMessage":
+		if request.FormValue("channel") != "direct-message" {
+			return fmt.Errorf("unexpected Slack channel")
+		}
+	}
+	return nil
 }

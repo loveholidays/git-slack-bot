@@ -79,18 +79,10 @@ func (g *GitHandler) HandlePullRequestEvent(body []byte) {
 		return
 	}
 
-	switch event.GetAction() {
-	case opened, readyForReview, assigned:
-		if pullRequest.GetDraft() || pullRequest.GetState() == closed {
-			return
-		}
-		if event.GetAction() == assigned && !g.isTeamAssignment(event) {
-			return
-		}
-	case closed, reopened:
-	default:
+	if !g.shouldHandlePullRequestEvent(event) {
 		return
 	}
+
 	g.forEachDestination(event.Repo, pullRequest, func(g *GitHandler) {
 		switch event.GetAction() {
 		case opened, readyForReview, assigned:
@@ -315,5 +307,19 @@ func (g *GitHandler) forEachDestination(repository *gh.Repository, pullRequest *
 	}
 	if len(assignees) == 0 {
 		handle(g)
+	}
+}
+
+func (g *GitHandler) shouldHandlePullRequestEvent(event *gh.PullRequestEvent) bool {
+	switch event.GetAction() {
+	case opened, readyForReview, assigned:
+		if event.PullRequest.GetDraft() || event.PullRequest.GetState() == closed {
+			return false
+		}
+		return event.GetAction() != assigned || g.isTeamAssignment(event)
+	case closed, reopened:
+		return true
+	default:
+		return false
 	}
 }
