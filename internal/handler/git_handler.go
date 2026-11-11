@@ -51,20 +51,22 @@ type GitEventHandler interface {
 }
 
 type GitHandler struct {
-	slackConnector      slack.Interactor
-	messageBuilder      messageBuilder.MessageBuilder
-	userService         user.Service
-	emoji               config.EmojiConfiguration
-	githubConfiguration config.GitHubConfiguration
+	slackConnector    slack.Interactor
+	messageBuilder    messageBuilder.MessageBuilder
+	userService       user.Service
+	emoji             config.EmojiConfiguration
+	notificationRules []config.NotificationRule
+	ignoredRepos      []string
 }
 
-func NewGitHandler(slackConnector slack.Interactor, userService user.Service, emoji config.EmojiConfiguration, githubConfiguration config.GitHubConfiguration) *GitHandler {
+func NewGitHandler(slackConnector slack.Interactor, userService user.Service, emoji config.EmojiConfiguration, configuration config.Configuration) *GitHandler {
 	return &GitHandler{
-		slackConnector:      slackConnector,
-		messageBuilder:      messageBuilder.MessageBuilder{},
-		userService:         userService,
-		emoji:               emoji,
-		githubConfiguration: githubConfiguration,
+		slackConnector:    slackConnector,
+		messageBuilder:    messageBuilder.MessageBuilder{},
+		userService:       userService,
+		emoji:             emoji,
+		notificationRules: configuration.NotificationRules(),
+		ignoredRepos:      configuration.GitHub.IgnoredRepos,
 	}
 }
 
@@ -75,59 +77,55 @@ func (g *GitHandler) HandlePullRequestEvent(body []byte) {
 	}
 	pullRequest := event.PullRequest
 
-	if !g.shouldTrackPullRequest(event.Repo, pullRequest) {
-		return
-	}
-
 	if !g.shouldHandlePullRequestEvent(event) {
 		return
 	}
 
-	g.forEachDestination(event.Repo, pullRequest, func(g *GitHandler) {
+	for _, connector := range g.notificationDestinations(event.Repo, pullRequest, event.GetAction() == assigned) {
 		switch event.GetAction() {
-		case opened, readyForReview, assigned:
-			g.notifyPullRequest(pullRequest)
 		case closed:
-			g.closePullRequest(pullRequest)
+			g.closePullRequest(connector, pullRequest)
 		case reopened:
-			g.reopenPullRequest(pullRequest)
+			g.reopenPullRequest(connector, pullRequest)
+		default:
+			g.notifyPullRequest(connector, pullRequest)
 		}
-	})
+	}
 }
 
-func (g *GitHandler) reopenPullRequest(pullRequest *gh.PullRequest) {
+func (g *GitHandler) reopenPullRequest(connector slack.Interactor, pullRequest *gh.PullRequest) {
 	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
-	slackMessage, err := g.slackConnector.GetMessage(messageKey)
+	slackMessage, err := connector.GetMessage(messageKey)
 	if err != nil {
 		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
 		return
 	}
-	g.slackConnector.RemoveReactionFromMessage("x", slackMessage)
+	connector.RemoveReactionFromMessage("x", slackMessage)
 }
 
-func (g *GitHandler) notifyPullRequest(pullRequest *gh.PullRequest) {
+func (g *GitHandler) notifyPullRequest(connector slack.Interactor, pullRequest *gh.PullRequest) {
 	if pullRequest.GetDraft() || pullRequest.GetState() == closed {
 		return
 	}
 	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
 	message := g.messageBuilder.BuildPRMessage(g.userService.GetUserDescriptor(pullRequest.GetUser().GetLogin()), pullRequest)
-	g.slackConnector.SendMessageOnce(slack.Notification{Key: messageKey, Text: message, CreatedAt: pullRequest.GetCreatedAt().Time})
+	connector.SendMessageOnce(slack.Notification{Key: messageKey, Text: message, CreatedAt: pullRequest.GetCreatedAt().Time})
 }
 
-func (g *GitHandler) closePullRequest(pullRequest *gh.PullRequest) {
+func (g *GitHandler) closePullRequest(connector slack.Interactor, pullRequest *gh.PullRequest) {
 	if pullRequest.GetDraft() {
 		return
 	}
 	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
-	slackMessage, err := g.slackConnector.GetMessage(messageKey)
+	slackMessage, err := connector.GetMessage(messageKey)
 	if err != nil {
 		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
 		return
 	}
 	if pullRequest.MergedAt != nil {
-		g.slackConnector.AddReactionToMessage(g.emoji.Merge, slackMessage)
+		connector.AddReactionToMessage(g.emoji.Merge, slackMessage)
 	} else {
-		g.slackConnector.AddReactionToMessage(g.emoji.Close, slackMessage)
+		connector.AddReactionToMessage(g.emoji.Close, slackMessage)
 	}
 }
 
@@ -140,47 +138,43 @@ func (g *GitHandler) HandlePullRequestReviewEvent(body []byte) {
 	}
 	pullRequest := event.PullRequest
 
-	if !g.shouldTrackPullRequest(event.Repo, pullRequest) {
+	if g.isIgnoredRepo(event.Repo.GetName()) || g.userService.IsIgnoredReviewUser(event.Review.GetUser().GetLogin()) {
 		return
 	}
 
-	if g.userService.IsIgnoredReviewUser(*event.Review.User.Login) {
-		return
-	}
-
-	g.forEachDestination(event.Repo, pullRequest, func(g *GitHandler) {
+	for _, connector := range g.notificationDestinations(event.Repo, pullRequest, false) {
 		switch event.GetAction() {
 		case submitted:
-			g.submitReview(pullRequest, event.Review)
+			g.submitReview(connector, pullRequest, event.Review)
 		case dismissed:
-			g.dismissReview(pullRequest)
+			g.dismissReview(connector, pullRequest)
 		}
-	})
+	}
 }
 
-func (g *GitHandler) submitReview(pullRequest *gh.PullRequest, review *gh.PullRequestReview) {
+func (g *GitHandler) submitReview(connector slack.Interactor, pullRequest *gh.PullRequest, review *gh.PullRequestReview) {
 	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
-	slackMessage, err := g.slackConnector.GetMessage(messageKey)
+	slackMessage, err := connector.GetMessage(messageKey)
 	if err != nil {
 		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
 		return
 	}
 	if review.GetState() == approved {
-		g.slackConnector.AddReactionToMessage(g.emoji.Approve, slackMessage)
+		connector.AddReactionToMessage(g.emoji.Approve, slackMessage)
 	}
 	if review.GetBody() != "" {
-		g.slackConnector.SendReply(slackMessage, g.messageBuilder.BuildPRReviewMessage(g.userService.GetUserDescriptor(review.GetUser().GetLogin()), review))
+		connector.SendReply(slackMessage, g.messageBuilder.BuildPRReviewMessage(g.userService.GetUserDescriptor(review.GetUser().GetLogin()), review))
 	}
 }
 
-func (g *GitHandler) dismissReview(pullRequest *gh.PullRequest) {
+func (g *GitHandler) dismissReview(connector slack.Interactor, pullRequest *gh.PullRequest) {
 	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
-	slackMessage, err := g.slackConnector.GetMessage(messageKey)
+	slackMessage, err := connector.GetMessage(messageKey)
 	if err != nil {
 		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
 		return
 	}
-	g.slackConnector.RemoveReactionFromMessage(g.emoji.Approve, slackMessage)
+	connector.RemoveReactionFromMessage(g.emoji.Approve, slackMessage)
 }
 
 type commentEvent struct {
@@ -209,58 +203,35 @@ func (g *GitHandler) handleCommentEvent(body []byte) {
 		pullRequest = &gh.PullRequest{User: event.Issue.User, Assignees: event.Issue.Assignees, HTMLURL: event.Issue.HTMLURL}
 	}
 	commentAuthor := event.GetComment().GetUser().GetLogin()
-	if !g.isRelevantComment(event.Repo, pullRequest.User, pullRequest.Assignees, commentAuthor) {
+	if g.isIgnoredRepo(event.Repo.GetName()) || g.userService.IsIgnoredCommentUser(commentAuthor) {
 		return
 	}
-	g.forEachDestination(event.Repo, pullRequest, func(g *GitHandler) {
-		userDescriptor := g.userService.GetUserDescriptor(commentAuthor)
-		if event.Issue != nil {
-			comment := &gh.IssueComment{User: event.Comment.User, Body: event.Comment.Body, HTMLURL: event.Comment.HTMLURL}
-			message := g.messageBuilder.BuildIssueCommentMessage(userDescriptor, gh.IssueCommentEvent{Comment: comment})
-			g.sendCommentReply(pullRequest.GetHTMLURL(), message)
-			return
-		}
-		message := g.messageBuilder.BuildPRCommentMessage(userDescriptor, event.PullRequestReviewCommentEvent)
-		g.sendCommentReply(pullRequest.GetHTMLURL(), message)
-	})
+	for _, connector := range g.notificationDestinations(event.Repo, pullRequest, false) {
+		g.sendCommentReply(connector, pullRequest.GetHTMLURL(), g.commentMessage(event))
+	}
 }
 
-func (g *GitHandler) isRelevantComment(repository *gh.Repository, author *gh.User, assignees []*gh.User, commentAuthor string) bool {
-	return !g.isIgnoredRepo(repository.GetName()) &&
-		g.isRelevantPullRequest(repository, author, assignees) &&
-		!g.userService.IsIgnoredCommentUser(commentAuthor)
+func (g *GitHandler) commentMessage(event *commentEvent) string {
+	userDescriptor := g.userService.GetUserDescriptor(event.GetComment().GetUser().GetLogin())
+	if event.Issue != nil {
+		comment := &gh.IssueComment{User: event.Comment.User, Body: event.Comment.Body, HTMLURL: event.Comment.HTMLURL}
+		return g.messageBuilder.BuildIssueCommentMessage(userDescriptor, gh.IssueCommentEvent{Comment: comment})
+	}
+	return g.messageBuilder.BuildPRCommentMessage(userDescriptor, event.PullRequestReviewCommentEvent)
 }
 
-func (g *GitHandler) sendCommentReply(pullRequestURL, message string) {
+func (g *GitHandler) sendCommentReply(connector slack.Interactor, pullRequestURL, message string) {
 	messageKey := fmt.Sprintf("<%s>", pullRequestURL)
-	slackMessage, err := g.slackConnector.GetMessage(messageKey)
+	slackMessage, err := connector.GetMessage(messageKey)
 	if err != nil {
 		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
 		return
 	}
-	g.slackConnector.SendReply(slackMessage, message)
+	connector.SendReply(slackMessage, message)
 }
 
 func (g *GitHandler) isIgnoredRepo(repoName string) bool {
-	return slices.Contains(g.githubConfiguration.IgnoredRepos, repoName)
-}
-
-func (g *GitHandler) isRelevantPullRequest(repository *gh.Repository, author *gh.User, assignees []*gh.User) bool {
-	if g.githubConfiguration.NotificationRules != nil {
-		return g.hasMatchingRule(repository, &gh.PullRequest{User: author, Assignees: assignees})
-	}
-	if g.userService.IsTeamMember(author.GetLogin()) {
-		return true
-	}
-	if !g.githubConfiguration.TracksAssignedPRs(repository.GetFullName()) {
-		return false
-	}
-	for _, assignee := range assignees {
-		if g.userService.IsTeamMember(assignee.GetLogin()) {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(g.ignoredRepos, repoName)
 }
 
 func parseGitEvent[Event any](body []byte) *Event {
@@ -272,59 +243,13 @@ func parseGitEvent[Event any](body []byte) *Event {
 	return &event
 }
 
-func (g *GitHandler) isTeamAssignment(event *gh.PullRequestEvent) bool {
-	if g.githubConfiguration.NotificationRules != nil {
-		return g.matchesAssignmentRule(event)
-	}
-	return g.githubConfiguration.TracksAssignedPRs(event.GetRepo().GetFullName()) &&
-		g.userService.IsTeamMember(event.GetAssignee().GetLogin())
-}
-
-func (g *GitHandler) shouldTrackPullRequest(repository *gh.Repository, pullRequest *gh.PullRequest) bool {
-	return !g.isIgnoredRepo(repository.GetName()) &&
-		g.isRelevantPullRequest(repository, pullRequest.GetUser(), pullRequest.Assignees)
-}
-
-func (g *GitHandler) forEachDestination(repository *gh.Repository, pullRequest *gh.PullRequest, handle func(*GitHandler)) {
-	if g.githubConfiguration.NotificationRules != nil {
-		g.forEachRuleDestination(repository, pullRequest, handle)
-		return
-	}
-	if g.githubConfiguration.NotifyAssignedFluxPRs || !g.githubConfiguration.TracksAssignedPRs(repository.GetFullName()) {
-		handle(g)
-		return
-	}
-	g.forEachAssignedDestination(pullRequest, handle)
-}
-
-func (g *GitHandler) forEachAssignedDestination(pullRequest *gh.PullRequest, handle func(*GitHandler)) {
-	assignees := map[string]bool{}
-	for _, assignee := range pullRequest.Assignees {
-		login := assignee.GetLogin()
-		if assignees[login] || !g.userService.IsTeamMember(login) {
-			continue
-		}
-		assignees[login] = true
-		connector := g.directMessageRecipient(login)
-		if connector == nil {
-			continue
-		}
-		destination := *g
-		destination.slackConnector = connector
-		handle(&destination)
-	}
-	if len(assignees) == 0 {
-		handle(g)
-	}
-}
-
 func (g *GitHandler) shouldHandlePullRequestEvent(event *gh.PullRequestEvent) bool {
 	switch event.GetAction() {
 	case opened, readyForReview, assigned:
 		if event.PullRequest.GetDraft() || event.PullRequest.GetState() == closed {
 			return false
 		}
-		return event.GetAction() != assigned || g.isTeamAssignment(event)
+		return event.GetAction() != assigned || g.userService.IsTeamMember(event.GetAssignee().GetLogin())
 	case closed, reopened:
 		return true
 	default:

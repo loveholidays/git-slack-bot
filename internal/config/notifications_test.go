@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"git-slack-bot/internal/config"
+	"reflect"
 	"testing"
 )
 
@@ -42,5 +43,29 @@ func TestLegacyChannelValidation(t *testing.T) {
 	configuration.Notifications = []config.NotificationRule{}
 	if err := configuration.Validate(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLegacyConfigurationBecomesNotificationRules(t *testing.T) {
+	author := config.NotificationRule{Relationship: "author", Destination: "channel", ChannelID: "reviews"}
+	assignee := config.NotificationRule{Relationship: "assignee", Repositories: []string{"loveholidays/flux"}, Destination: "channel", ChannelID: "reviews"}
+	explicit := config.NotificationRule{Relationship: "assignee", Destination: "directMessage"}
+	for _, testCase := range []struct {
+		name            string
+		legacyAssignees bool
+		notifications   []config.NotificationRule
+		expected        []config.NotificationRule
+	}{
+		{name: "legacy author channel", expected: []config.NotificationRule{author}},
+		{name: "legacy assignees use same channel", legacyAssignees: true, expected: []config.NotificationRule{author, assignee}},
+		{name: "explicit rules replace legacy", legacyAssignees: true, notifications: []config.NotificationRule{explicit}, expected: []config.NotificationRule{explicit}},
+		{name: "empty rules disable legacy", legacyAssignees: true, notifications: []config.NotificationRule{}, expected: []config.NotificationRule{}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			configuration := config.Configuration{GitHub: config.GitHubConfiguration{NotifyAssignedFluxPRs: testCase.legacyAssignees}, Slack: config.SlackConfiguration{ChannelID: "reviews"}, Notifications: testCase.notifications}
+			if actual := configuration.NotificationRules(); !reflect.DeepEqual(actual, testCase.expected) {
+				t.Fatalf("got %+v, want %+v", actual, testCase.expected)
+			}
+		})
 	}
 }

@@ -174,7 +174,7 @@ All matching rules apply. A PR that a team member both authors and is assigned c
 
 For DMs, the relationship determines recipients: the team author or every team assignee. Recipients must have a `slack.githubEmailToSlackEmail` mapping. Despite its name, each mapping's `githubEmail` is a GitHub login. Missing mappings and Slack failures are logged without falling back to a channel. The bot identity comes from `slack.token`.
 
-When `notifications` is omitted, existing configuration retains its behaviour, including channel delivery for `github.notifyAssignedFluxPRs`. An explicit list replaces legacy routing; `notifications: []` disables all notifications. `slack.channelID` is optional with explicit rules. The earlier `github.assigneeNotifications.directMessageRepos` setting is also accepted when rules are omitted, but new configurations should use `notifications`.
+When `notifications` is omitted, existing configuration retains its behaviour, including channel delivery for `github.notifyAssignedFluxPRs`. An explicit list replaces legacy routing; `notifications: []` disables all notifications. `slack.channelID` is optional with explicit rules.
 
 For example, replace `github.notifyAssignedFluxPRs: true` and `slack.channelID` with:
 

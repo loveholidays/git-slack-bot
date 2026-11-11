@@ -72,7 +72,7 @@ func ruleTestHandler(t *testing.T, rules []config.NotificationRule) (gitHandler 
 		root.EXPECT().DirectMessage(login).Return(destinations["dm-"+login], nil).AnyTimes()
 	}
 	users := user.NewService(root, []string{"member", "second"}, []config.GithubEmailToSlackEmail{{GithubEmail: "member", SlackEmail: "member@example.com"}, {GithubEmail: "second", SlackEmail: "second@example.com"}}, nil, nil)
-	configuration := config.GitHubConfiguration{NotificationRules: rules, NotifyAssignedFluxPRs: true}
+	configuration := config.Configuration{Notifications: rules, GitHub: config.GitHubConfiguration{NotifyAssignedFluxPRs: true}}
 	return handler.NewGitHandler(root, users, validEmojis(), configuration), destinations
 }
 
@@ -96,7 +96,7 @@ func TestRuleThreadsFollowBothDestinations(t *testing.T) {
 func TestLegacyAssignedPRsKeepChannelDelivery(t *testing.T) {
 	connector := mock_slack.NewMockInteractor(gomock.NewController(t))
 	users := user.NewService(connector, []string{"member"}, nil, nil, nil)
-	gitHandler := handler.NewGitHandler(connector, users, validEmojis(), config.GitHubConfiguration{NotifyAssignedFluxPRs: true})
+	gitHandler := handler.NewGitHandler(connector, users, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{NotifyAssignedFluxPRs: true}})
 	connector.EXPECT().SendMessageOnce(gomock.Any())
 	gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("assigned"), Assignee: &gh.User{Login: gh.String("member")}, Repo: assignmentRepository("loveholidays/flux"), PullRequest: assignmentPullRequest("external", []string{"member"})}))
 }

@@ -7,85 +7,88 @@ import (
 	"log/slog"
 )
 
-func (g *GitHandler) ruleRecipients(rule config.NotificationRule, pullRequest *gh.PullRequest) []string {
+type notificationTarget struct {
+	channelID string
+	login     string
+}
+
+func (g *GitHandler) notificationDestinations(repository *gh.Repository, pullRequest *gh.PullRequest, assignment bool) []slack.Interactor {
+	if g.isIgnoredRepo(repository.GetName()) {
+		return nil
+	}
+	targets, matchesAssignment := g.notificationTargets(repository, pullRequest)
+	if assignment && !matchesAssignment {
+		return nil
+	}
+	return g.resolveTargets(targets)
+}
+
+func (g *GitHandler) resolveTargets(targets []notificationTarget) []slack.Interactor {
+	var destinations []slack.Interactor
+	seenTargets := map[notificationTarget]bool{}
+	seenConversations := map[string]bool{}
+	for _, target := range targets {
+		if seenTargets[target] {
+			continue
+		}
+		seenTargets[target] = true
+		connector := g.resolveTarget(target)
+		if connector == nil {
+			continue
+		}
+		conversation := target.channelID
+		if target.login != "" {
+			conversation = connector.ConversationID()
+		}
+		if seenConversations[conversation] {
+			continue
+		}
+		seenConversations[conversation] = true
+		destinations = append(destinations, connector)
+	}
+	return destinations
+}
+
+func (g *GitHandler) notificationTargets(repository *gh.Repository, pullRequest *gh.PullRequest) (targets []notificationTarget, matchesAssignment bool) {
+	for _, rule := range g.notificationRules {
+		if !rule.MatchesRepository(repository.GetFullName()) {
+			continue
+		}
+		matched := g.ruleTargets(rule, pullRequest)
+		if rule.Relationship == "assignee" && len(matched) > 0 {
+			matchesAssignment = true
+		}
+		targets = append(targets, matched...)
+	}
+	return targets, matchesAssignment
+}
+
+func (g *GitHandler) ruleTargets(rule config.NotificationRule, pullRequest *gh.PullRequest) []notificationTarget {
 	users := pullRequest.Assignees
 	if rule.Relationship == "author" {
 		users = []*gh.User{pullRequest.GetUser()}
 	}
-	var recipients []string
+	var targets []notificationTarget
 	for _, candidate := range users {
-		if g.userService.IsTeamMember(candidate.GetLogin()) {
-			recipients = append(recipients, candidate.GetLogin())
-		}
-	}
-	return recipients
-}
-
-func (g *GitHandler) hasMatchingRule(repository *gh.Repository, pullRequest *gh.PullRequest) bool {
-	for _, rule := range g.githubConfiguration.NotificationRules {
-		if rule.MatchesRepository(repository.GetFullName()) && len(g.ruleRecipients(rule, pullRequest)) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-func (g *GitHandler) matchesAssignmentRule(event *gh.PullRequestEvent) bool {
-	if !g.userService.IsTeamMember(event.GetAssignee().GetLogin()) {
-		return false
-	}
-	for _, rule := range g.githubConfiguration.NotificationRules {
-		if rule.Relationship == "assignee" && rule.MatchesRepository(event.GetRepo().GetFullName()) {
-			return true
-		}
-	}
-	return false
-}
-
-func (g *GitHandler) forEachRuleDestination(repository *gh.Repository, pullRequest *gh.PullRequest, handle func(*GitHandler)) {
-	destinations := map[string]bool{}
-	for _, connector := range g.matchingRuleConnectors(repository, pullRequest) {
-		id := connector.ConversationID()
-		if destinations[id] {
+		if !g.userService.IsTeamMember(candidate.GetLogin()) {
 			continue
 		}
-		destinations[id] = true
-		destination := *g
-		destination.slackConnector = connector
-		handle(&destination)
+		if rule.Destination == "channel" {
+			return []notificationTarget{{channelID: rule.ChannelID}}
+		}
+		targets = append(targets, notificationTarget{login: candidate.GetLogin()})
 	}
+	return targets
 }
 
-func (g *GitHandler) matchingRuleConnectors(repository *gh.Repository, pullRequest *gh.PullRequest) []slack.Interactor {
-	var connectors []slack.Interactor
-	for _, rule := range g.githubConfiguration.NotificationRules {
-		if rule.MatchesRepository(repository.GetFullName()) {
-			connectors = append(connectors, g.ruleConnectors(rule, pullRequest)...)
-		}
+func (g *GitHandler) resolveTarget(target notificationTarget) slack.Interactor {
+	if target.login != "" {
+		return g.directMessageRecipient(target.login)
 	}
-	return connectors
-}
-
-func (g *GitHandler) ruleConnectors(rule config.NotificationRule, pullRequest *gh.PullRequest) []slack.Interactor {
-	recipients := g.ruleRecipients(rule, pullRequest)
-	if len(recipients) == 0 {
-		return nil
+	if target.channelID == "" {
+		return g.slackConnector
 	}
-	if rule.Destination == "channel" {
-		return []slack.Interactor{g.slackConnector.Channel(rule.ChannelID)}
-	}
-	var connectors []slack.Interactor
-	seen := map[string]bool{}
-	for _, login := range recipients {
-		if seen[login] {
-			continue
-		}
-		seen[login] = true
-		if connector := g.directMessageRecipient(login); connector != nil {
-			connectors = append(connectors, connector)
-		}
-	}
-	return connectors
+	return g.slackConnector.Channel(target.channelID)
 }
 
 func (g *GitHandler) directMessageRecipient(login string) slack.Interactor {

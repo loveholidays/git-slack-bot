@@ -143,6 +143,7 @@ func TestConfiguredRepositoryAssigneeReactionsAndThreads(t *testing.T) {
 			gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), assignmentConfiguration(true))
 			slackMock.EXPECT().GetUserIDByEmail("member@example.com").Return("member-id", nil)
 			slackMock.EXPECT().DirectMessage("member-id").Return(slackMock, nil)
+			slackMock.EXPECT().ConversationID().Return("dm-member").AnyTimes()
 			message := &slack.Message{Msg: slack.Msg{Timestamp: "123.456"}}
 			slackMock.EXPECT().GetMessage("<https://github.com/example/deployments/pull/42>").Return(message, nil)
 			testCase.run(t, gitHandler, slackMock, message, assignmentPullRequest("external", []string{"member"}))
@@ -218,7 +219,7 @@ func TestMalformedGitEvents(t *testing.T) {
 func TestDisabledConfiguredRepositoryAssignmentTracking(t *testing.T) {
 	slackMock := mock_slack.NewMockInteractor(gomock.NewController(t))
 	userService := user.NewService(slackMock, []string{"member"}, nil, nil, nil)
-	gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), config.GitHubConfiguration{})
+	gitHandler := handler.NewGitHandler(slackMock, userService, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{}})
 	pullRequest := assignmentPullRequest("external", []string{"member"})
 	repository := assignmentRepository("example/deployments")
 	gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("closed"), Repo: repository, PullRequest: pullRequest}))
@@ -257,6 +258,7 @@ func TestConfiguredRepositoryNotifiesEachAssigneeInSeparateDirectMessage(t *test
 		direct := mock_slack.NewMockInteractor(controller)
 		channel.EXPECT().GetUserIDByEmail(login+"@example.com").Return(login, nil)
 		channel.EXPECT().DirectMessage(login).Return(direct, nil)
+		direct.EXPECT().ConversationID().Return(login)
 		direct.EXPECT().SendMessageOnce(gomock.Any())
 	}
 	users := user.NewService(channel, []string{"first", "second"}, mappings, nil, nil)
@@ -279,14 +281,18 @@ func (expectation assignmentNotificationExpectation) expect(connector *mock_slac
 		email := map[string]string{"member": "member@example.com", "another-member": "another@example.com"}[login]
 		connector.EXPECT().GetUserIDByEmail(email).Return(login, nil).AnyTimes()
 		connector.EXPECT().DirectMessage(login).Return(connector, nil)
+		connector.EXPECT().ConversationID().Return(login)
 	}
 	connector.EXPECT().SendMessageOnce(bot_slack.Notification{Key: "<https://github.com/example/deployments/pull/42>", Text: fmt.Sprintf("%s Update deployment:\nhttps://github.com/example/deployments/pull/42", authorDescriptor), CreatedAt: pullRequest.GetCreatedAt().Time}).Times(max(1, len(expectation.recipients)))
 }
 
-func assignmentConfiguration(enabled bool) config.GitHubConfiguration {
-	configuration := config.GitHubConfiguration{}
+func assignmentConfiguration(enabled bool) config.Configuration {
+	configuration := config.Configuration{}
 	if enabled {
-		configuration.AssigneeNotifications.DirectMessageRepos = []string{"example/deployments"}
+		configuration.Notifications = []config.NotificationRule{
+			{Relationship: "author", ExcludedRepositories: []string{"example/deployments"}, Destination: "channel"},
+			{Relationship: "assignee", Repositories: []string{"example/deployments"}, Destination: "directMessage"},
+		}
 	}
 	return configuration
 }
