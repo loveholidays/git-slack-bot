@@ -70,7 +70,7 @@ var _ = Describe("HandleGitEvents", func() {
 
 	Context("HandlePullRequestEvents", func() {
 		It("should no-op if coming from a ignored repo", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.GitHubConfiguration{IgnoredRepos: []string{"hotels-and-ancillaries"}})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"hotels-and-ancillaries"}}})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
 			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
@@ -78,7 +78,7 @@ var _ = Describe("HandleGitEvents", func() {
 		})
 
 		It("should post slack message when pull request opened", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("<@123>")
@@ -91,7 +91,7 @@ https://github.com/loveholidays/hotels-and-ancillaries/pull/808`
 		})
 
 		It("should post slack message when pull request ready for review", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("<@123>")
@@ -104,7 +104,7 @@ https://github.com/loveholidays/flux/pull/92504`
 		})
 
 		It("should add merged emoji to message when pull request merged", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			messageKey := &slack.Message{}
@@ -115,7 +115,7 @@ https://github.com/loveholidays/flux/pull/92504`
 		})
 
 		It("should add closed emoji when pull request closed", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			messageKey := &slack.Message{}
@@ -126,7 +126,7 @@ https://github.com/loveholidays/flux/pull/92504`
 		})
 
 		It("should remove closed emoji when pull request reopened", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			messageKey := &slack.Message{}
@@ -139,7 +139,7 @@ https://github.com/loveholidays/flux/pull/92504`
 
 	Context("HandlePullRequestReviewEvent", func() {
 		It("should no-op if coming from a ignored repo", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.GitHubConfiguration{IgnoredRepos: []string{"frontier"}})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"frontier"}}})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
 			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
@@ -147,7 +147,7 @@ https://github.com/loveholidays/flux/pull/92504`
 		})
 
 		It("should add tick emoji when pull request approved", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(false)
@@ -159,7 +159,7 @@ https://github.com/loveholidays/flux/pull/92504`
 		})
 
 		It("should post review body to slack as a reply when pull request review has body", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 			reviewBodyJSON := []byte(`{
 				"action": "submitted",
 				"review": {
@@ -196,7 +196,7 @@ Please update this before merging.`
 		})
 
 		It("should post approval review body and add tick emoji when approved review has body", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 			approvedReviewBodyJSON := []byte(`{
 				"action": "submitted",
 				"review": {
@@ -233,9 +233,8 @@ Looks good overall.`
 		})
 
 		It("should not add tick emoji when pull request reviewer is ignored", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
-			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(true)
 			slackMock.EXPECT().GetMessage(gomock.Any()).Times(0)
 			slackMock.EXPECT().AddReactionToMessage(gomock.Any(), gomock.Any()).Times(0)
@@ -244,7 +243,7 @@ Looks good overall.`
 		})
 
 		It("should remove approve emoji when pull request review is dismissed", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(false)
@@ -256,9 +255,8 @@ Looks good overall.`
 		})
 
 		It("should not remove approve emoji when dismissed review is from ignored reviewer", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
-			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(true)
 			slackMock.EXPECT().GetMessage(gomock.Any()).Times(0)
 			slackMock.EXPECT().RemoveReactionFromMessage(gomock.Any(), gomock.Any()).Times(0)
@@ -269,7 +267,7 @@ Looks good overall.`
 
 	Context("HandlePullRequestReviewCommentEvent", func() {
 		It("should no-op if coming from a ignored repo", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.GitHubConfiguration{IgnoredRepos: []string{"yielding-ui"}})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"yielding-ui"}}})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
 			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
@@ -277,7 +275,7 @@ Looks good overall.`
 		})
 
 		It("should post comment to slack as a reply when pull request commented on", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("<@123>")
@@ -294,9 +292,8 @@ Sorry, that's not allowed since https://adrs.lvh.systems/adr/20231205-container-
 		})
 
 		It("should ignore pull request commented on from ignored comment user", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
-			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().IsIgnoredCommentUser(gomock.Any()).Return(true)
 
 			slackMock.EXPECT().GetMessage(gomock.Any()).MaxTimes(0)
@@ -308,7 +305,7 @@ Sorry, that's not allowed since https://adrs.lvh.systems/adr/20231205-container-
 
 	Context("HandleIssueCommentEvent", func() {
 		It("should no-op if coming from a ignored repo", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.GitHubConfiguration{IgnoredRepos: []string{"hotels-and-ancillaries"}})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"hotels-and-ancillaries"}}})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
 			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
@@ -316,7 +313,7 @@ Sorry, that's not allowed since https://adrs.lvh.systems/adr/20231205-container-
 		})
 
 		It("should post comment to slack as a reply when top level pull request comment is added to PR", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("<@123>")
@@ -332,9 +329,8 @@ Just leaving a top level comment here`
 		})
 
 		It("should ignore top level pull request comment added to PR from ignored comment user", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), githubConfiguration)
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
 
-			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().IsIgnoredCommentUser("georgesmith96").Return(true)
 			slackMock.EXPECT().GetMessage(gomock.Any()).MaxTimes(0)
 

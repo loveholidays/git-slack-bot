@@ -21,8 +21,9 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 package config
 
 type Configuration struct {
-	GitHub GitHubConfiguration `yaml:"github"  required:"true"`
-	Slack  SlackConfiguration  `yaml:"slack"  required:"true"`
+	GitHub        GitHubConfiguration `yaml:"github"  required:"true"`
+	Slack         SlackConfiguration  `yaml:"slack"  required:"true"`
+	Notifications []NotificationRule  `yaml:"notifications"`
 }
 
 type GitHubConfiguration struct {
@@ -39,7 +40,7 @@ type GitHubConfiguration struct {
 
 type SlackConfiguration struct {
 	Token                   string                    `yaml:"token"  required:"true"`
-	ChannelID               string                    `yaml:"channelID"  required:"true"`
+	ChannelID               string                    `yaml:"channelID"`
 	GithubEmailToSlackEmail []GithubEmailToSlackEmail `yaml:"githubEmailToSlackEmail"`
 	EmojiConfiguration      EmojiConfiguration        `yaml:"emoji"`
 }
@@ -55,6 +56,13 @@ type GithubEmailToSlackEmail struct {
 	SlackEmail  string `yaml:"slackEmail"`
 }
 
-func (configuration GitHubConfiguration) TracksAssignedFluxPRs(repository string) bool {
-	return configuration.NotifyAssignedFluxPRs && repository == "loveholidays/flux"
+func (configuration Configuration) NotificationRules() []NotificationRule {
+	if configuration.Notifications != nil {
+		return configuration.Notifications
+	}
+	rules := []NotificationRule{{Relationship: "author", Destination: "channel", ChannelID: configuration.Slack.ChannelID}}
+	if configuration.GitHub.NotifyAssignedFluxPRs {
+		rules = append(rules, NotificationRule{Relationship: "assignee", Repositories: []string{"loveholidays/flux"}, Destination: "channel", ChannelID: configuration.Slack.ChannelID})
+	}
+	return rules
 }

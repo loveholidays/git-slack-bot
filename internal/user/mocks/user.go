@@ -39,6 +39,21 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
+// GetSlackUserID mocks base method.
+func (m *MockService) GetSlackUserID(githubLogin string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSlackUserID", githubLogin)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSlackUserID indicates an expected call of GetSlackUserID.
+func (mr *MockServiceMockRecorder) GetSlackUserID(githubLogin any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSlackUserID", reflect.TypeOf((*MockService)(nil).GetSlackUserID), githubLogin)
+}
+
 // GetUserDescriptor mocks base method.
 func (m *MockService) GetUserDescriptor(githubLogin string) string {
 	m.ctrl.T.Helper()

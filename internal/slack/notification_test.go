@@ -189,3 +189,38 @@ func TestSlackReactionFailuresAreLogged(t *testing.T) {
 		t.Errorf("expected both reaction failures in logs, got %s", logOutput.String())
 	}
 }
+
+func TestDirectMessageUsesRecipientConversation(t *testing.T) {
+	client := mock_slack.NewMockClient(gomock.NewController(t))
+	connector := slack.NewSlackConnector(config.SlackConfiguration{ChannelID: "reviews"}, client)
+	client.EXPECT().OpenConversation(&sl.OpenConversationParameters{Users: []string{"member-id"}}).Return(&sl.Channel{GroupConversation: sl.GroupConversation{Conversation: sl.Conversation{ID: "dm-member"}}}, false, false, nil)
+	direct, err := connector.DirectMessage("member-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.EXPECT().GetConversationHistory(gomock.Any()).DoAndReturn(func(params *sl.GetConversationHistoryParameters) (*sl.GetConversationHistoryResponse, error) {
+		if params.ChannelID != "dm-member" {
+			t.Fatalf("wrong destination: %s", params.ChannelID)
+		}
+		return &sl.GetConversationHistoryResponse{}, nil
+	})
+	client.EXPECT().PostMessage("dm-member", gomock.Any()).Return("dm-member", "123.456", nil)
+	direct.SendMessageOnce(slack.Notification{Key: "PR", Text: "PR"})
+	message := &sl.Message{Msg: sl.Msg{Timestamp: "123.456"}}
+	client.EXPECT().PostMessage("dm-member", gomock.Any(), gomock.Any()).Return("dm-member", "123.457", nil)
+	direct.SendReply(message, "Review")
+	client.EXPECT().AddReaction("merged", sl.ItemRef{Channel: "dm-member", Timestamp: "123.456"}).Return(nil)
+	direct.AddReactionToMessage("merged", message)
+	client.EXPECT().RemoveReaction("merged", sl.ItemRef{Channel: "dm-member", Timestamp: "123.456"}).Return(nil)
+	direct.RemoveReactionFromMessage("merged", message)
+}
+
+func TestDirectMessageOpenFailure(t *testing.T) {
+	client := mock_slack.NewMockClient(gomock.NewController(t))
+	connector := slack.NewSlackConnector(config.SlackConfiguration{ChannelID: "reviews"}, client)
+	failure := errors.New("missing_scope")
+	client.EXPECT().OpenConversation(gomock.Any()).Return(nil, false, false, failure)
+	if _, err := connector.DirectMessage("member-id"); !errors.Is(err, failure) {
+		t.Fatalf("expected open error, got %v", err)
+	}
+}

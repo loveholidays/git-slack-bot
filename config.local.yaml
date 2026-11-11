@@ -9,9 +9,13 @@ github:
 
 slack:
   token: "$SLACK_TOKEN"
-  channelID: "$CHANNEL_ID"
   fetchMessageCount: 100
   emoji:
     approve: "+1"
     merge: "merged"
     close: "x"
+notifications:
+  - relationship: author
+    repositories: ["*"]
+    destination: channel
+    channelID: "$CHANNEL_ID"

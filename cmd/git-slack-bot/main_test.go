@@ -18,18 +18,24 @@ import (
 
 func TestAssignmentNotificationConfiguration(t *testing.T) {
 	for _, testCase := range []struct {
-		name      string
-		setting   string
-		wantPosts int
+		name          string
+		notifications string
+		author        string
+		destination   string
+		wantPosts     int
 	}{
-		{name: "omitted", setting: "", wantPosts: 0},
-		{name: "disabled", setting: "  notifyAssignedFluxPRs: false\n", wantPosts: 0},
-		{name: "enabled", setting: "  notifyAssignedFluxPRs: true\n", wantPosts: 1},
+		{name: "legacy authored channel", author: "member", destination: "reviews", wantPosts: 1},
+		{name: "assignee DM without legacy channel", notifications: "notifications:\n  - relationship: assignee\n    repositories: [example/deployments]\n    destination: directMessage\n", wantPosts: 1},
+		{name: "empty rules disable authored notifications", notifications: "notifications: []\n", author: "member", wantPosts: 0},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			transport := &startupTransport{}
+			transport := &startupTransport{destination: testCase.destination}
 			installStartupDependencies(t, transport)
-			configuration := "github:\n  token: test-github-token\n  org: loveholidays\n  team: Trading OS\n  secretKey: test-secret\n" + testCase.setting + "slack:\n  token: test-slack-token\n  channelID: reviews\n"
+			configuration := "github:\n  token: test-github-token\n  org: loveholidays\n  team: Trading OS\n  secretKey: test-secret\nslack:\n  token: test-slack-token\n  channelID: reviews\n  githubEmailToSlackEmail:\n    - githubEmail: member\n      slackEmail: member@example.com\n"
+			configuration += testCase.notifications
+			if testCase.notifications != "" {
+				configuration = strings.Replace(configuration, "  channelID: reviews\n", "", 1)
+			}
 			configurationPath := filepath.Join(t.TempDir(), "config.yaml")
 			if err := os.WriteFile(configurationPath, []byte(configuration), 0o600); err != nil {
 				t.Fatal(err)
@@ -39,7 +45,7 @@ func TestAssignmentNotificationConfiguration(t *testing.T) {
 				if server.Addr != ":8080" {
 					t.Errorf("unexpected server address: %s", server.Addr)
 				}
-				sendAssignmentWebhook(t)
+				sendPullRequestWebhook(t, testCase.author)
 				return errors.New("test server stopped")
 			}
 			main()
@@ -66,9 +72,12 @@ func installStartupDependencies(t *testing.T, transport http.RoundTripper) {
 	})
 }
 
-func sendAssignmentWebhook(t *testing.T) {
+func sendPullRequestWebhook(t *testing.T, author string) {
 	t.Helper()
-	body := `{"action":"assigned","assignee":{"login":"member"},"repository":{"name":"flux","full_name":"loveholidays/flux"},"pull_request":{"user":{"login":"external"},"assignees":[{"login":"member"}],"title":"Update deployment","html_url":"https://github.com/loveholidays/flux/pull/42","created_at":"2026-10-21T12:00:00Z"}}`
+	body := `{"action":"opened","assignee":{"login":"member"},"repository":{"name":"deployments","full_name":"example/deployments"},"pull_request":{"user":{"login":"external"},"assignees":[{"login":"member"}],"title":"Update deployment","html_url":"https://github.com/example/deployments/pull/42","created_at":"2026-10-21T12:00:00Z"}}`
+	if author != "" {
+		body = strings.Replace(body, `"login":"external"`, fmt.Sprintf(`"login":%q`, author), 1)
+	}
 	signature := hmac.New(sha256.New, []byte("test-secret"))
 	if _, err := signature.Write([]byte(body)); err != nil {
 		t.Fatal(err)
@@ -85,26 +94,31 @@ func sendAssignmentWebhook(t *testing.T) {
 }
 
 type startupTransport struct {
-	posts int
+	destination string
+	posts       int
 }
 
 func (transport *startupTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	var body string
-	switch request.URL.Path {
-	case "/orgs/loveholidays":
-		body = `{"id":1}`
-	case "/orgs/loveholidays/teams":
-		body = `[{"id":2,"name":"Trading OS"}]`
-	case "/organizations/1/team/2/members":
-		body = `[{"login":"member"}]`
-	case "/api/conversations.history":
-		body = `{"ok":true,"messages":[]}`
-	case "/api/chat.postMessage":
-		transport.posts++
-		body = `{"ok":true,"channel":"reviews","ts":"123.456"}`
-	default:
+	if err := transport.validateSlackDestination(request); err != nil {
+		return nil, err
+	}
+	responses := map[string]string{
+		"/orgs/loveholidays":              `{"id":1}`,
+		"/orgs/loveholidays/teams":        `[{"id":2,"name":"Trading OS"}]`,
+		"/organizations/1/team/2/members": `[{"login":"member"}]`,
+		"/api/users.lookupByEmail":        `{"ok":true,"user":{"id":"member-id"}}`,
+		"/api/conversations.open":         `{"ok":true,"channel":{"id":"direct-message"}}`,
+		"/api/conversations.history":      `{"ok":true,"messages":[]}`,
+		"/api/chat.postMessage":           `{"ok":true,"channel":"direct-message","ts":"123.456"}`,
+	}
+	body, found := responses[request.URL.Path]
+	if !found {
 		return nil, fmt.Errorf("unexpected outbound request: %s", request.URL)
 	}
+	if request.URL.Path == "/api/chat.postMessage" {
+		transport.posts++
+	}
+
 	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(body)), Request: request}, nil
 }
 
@@ -118,4 +132,22 @@ func TestInvalidConfiguration(t *testing.T) {
 	if exitCode != 1 {
 		t.Errorf("expected exit status 1, got %d", exitCode)
 	}
+}
+
+func (transport *startupTransport) validateSlackDestination(request *http.Request) error {
+	expected := transport.destination
+	if expected == "" {
+		expected = "direct-message"
+	}
+	switch request.URL.Path {
+	case "/api/conversations.open":
+		if request.FormValue("users") != "member-id" {
+			return fmt.Errorf("unexpected DM recipient")
+		}
+	case "/api/conversations.history", "/api/chat.postMessage":
+		if request.FormValue("channel") != expected {
+			return fmt.Errorf("unexpected Slack channel")
+		}
+	}
+	return nil
 }

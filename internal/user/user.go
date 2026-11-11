@@ -30,6 +30,7 @@ import (
 type Service interface {
 	IsTeamMember(githubLogin string) bool
 	GetUserDescriptor(githubLogin string) string
+	GetSlackUserID(githubLogin string) (string, error)
 	IsIgnoredCommentUser(githubLogin string) bool
 	IsIgnoredReviewUser(githubLogin string) bool
 }
@@ -62,7 +63,7 @@ func (s *ServiceImpl) IsTeamMember(githubLogin string) bool {
 }
 
 func (s *ServiceImpl) GetUserDescriptor(githubLogin string) string {
-	slackUserID, err := s.getSlackUserID(githubLogin)
+	slackUserID, err := s.GetSlackUserID(githubLogin)
 	if err != nil {
 		slog.Warn("Unable to find slack ID for user", slog.Any("user", githubLogin), slog.Any("error", err))
 		return githubLogin
@@ -70,7 +71,7 @@ func (s *ServiceImpl) GetUserDescriptor(githubLogin string) string {
 	return fmt.Sprintf("<@%s>", slackUserID)
 }
 
-func (s *ServiceImpl) getSlackUserID(githubLogin string) (string, error) {
+func (s *ServiceImpl) GetSlackUserID(githubLogin string) (string, error) {
 	for _, githubToSlackEmail := range s.githubToSlackEmails {
 		if githubToSlackEmail.GithubEmail == githubLogin {
 			email, err := s.slackConnector.GetUserIDByEmail(githubToSlackEmail.SlackEmail)

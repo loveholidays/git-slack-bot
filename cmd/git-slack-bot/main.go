@@ -25,6 +25,9 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
 	cfg, err := config_loader.LoadConfiguration[config.Configuration](os.Getenv("CONFIG_PATH"))
+	if err == nil {
+		err = cfg.Validate()
+	}
 	if err != nil {
 		slog.Error("Failed to load configuration", slog.Any("error", err))
 		exitProcess(1)
@@ -52,7 +55,7 @@ func main() {
 	if emojiConfiguration.Close == "" {
 		emojiConfiguration.Close = "x"
 	}
-	gitHandler := handler.NewGitHandler(slackConnector, userService, emojiConfiguration, cfg.GitHub)
+	gitHandler := handler.NewGitHandler(slackConnector, userService, emojiConfiguration, *cfg)
 	webhookEventHandler := handler.NewWebhookEventHandler([]byte(cfg.GitHub.SecretKey), gitHandler)
 	http.HandleFunc("/git-event", webhookEventHandler.HandleWebhook)
 	http.HandleFunc("/", webhookEventHandler.HandleHeathCheck)

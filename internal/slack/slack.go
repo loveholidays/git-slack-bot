@@ -29,6 +29,7 @@ import (
 )
 
 type Client interface {
+	OpenConversation(params *slack.OpenConversationParameters) (*slack.Channel, bool, bool, error)
 	GetConversationHistory(params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	PostMessage(channelID string, options ...slack.MsgOption) (string, string, error)
 	AddReaction(name string, item slack.ItemRef) error
@@ -37,6 +38,9 @@ type Client interface {
 }
 
 type Interactor interface {
+	Channel(channelID string) Interactor
+	ConversationID() string
+	DirectMessage(userID string) (Interactor, error)
 	SendMessageOnce(notification Notification)
 	SendReply(slackMessage *slack.Message, message string)
 	AddReactionToMessage(reaction string, message *slack.Message)
@@ -46,15 +50,16 @@ type Interactor interface {
 }
 
 type Connector struct {
-	notificationMutex sync.Mutex
+	notificationMutex *sync.Mutex
 	client            Client
 	channelID         string
 }
 
 func NewSlackConnector(cfg config.SlackConfiguration, client Client) *Connector {
 	return &Connector{
-		client:    client,
-		channelID: cfg.ChannelID,
+		notificationMutex: &sync.Mutex{},
+		client:            client,
+		channelID:         cfg.ChannelID,
 	}
 }
 
