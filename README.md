@@ -8,7 +8,7 @@ git-slack-bot automatically posts your GitHub pull request messages to a Slack c
 - 💬 **Threaded comments** - PR review comments appear as threaded replies in Slack
 - 😀 **Emoji reactions** - Visual indicators for PR approvals, merges, and closures
 - 👥 **Team member mapping** - Maps GitHub users to Slack users for proper @mentions
-- 🎯 **Selective notifications** - Track PRs authored by your team. Optionally enable notifications for PRs in `loveholidays/flux` assigned to a team member with `github.notifyAssignedFluxPRs: true` (disabled by default). Assignments added after opening also trigger a notification. Drafts wait until ready for review, and repeated events reuse the existing Slack post.
+- 🎯 **Selective notifications** - Track PRs authored by your team. Optionally enable direct messages for PRs in `loveholidays/flux` assigned to a team member with `github.notifyAssignedFluxPRs: true` (disabled by default). Assignments added after opening also trigger a notification. Drafts wait until ready for review, and repeated events reuse the existing Slack post in each assignee’s DM. Comments and status reactions follow the DM thread.
 - 🔒 **Secure webhooks** - Validates GitHub webhook signatures for security
 
 ## Installation
@@ -118,6 +118,8 @@ Before setting up git-slack-bot, you'll need:
 ### Slack App Setup
 - A Slack App with the following OAuth scopes:
   - `chat:write` - Post messages to channels
+  - `im:write` - Open direct messages for assigned Flux PRs
+  - `im:history` - Find existing Flux DM notifications for deduplication and thread updates
   - `chat:write.public` - Post to public channels without joining
   - `reactions:write` - Add emoji reactions
   - `channels:read` - List public channels (optional, for channel name resolution)
@@ -132,7 +134,7 @@ Before setting up git-slack-bot, you'll need:
   - `secretKey`: The secret key of the github webhook to verify incoming events against
   - `org`: The github organization the team is in
   - `team`: The team which has the members to post PR for
-  - `notifyAssignedFluxPRs`: Optional boolean, default `false`. Set to `true` to also notify for PRs in `loveholidays/flux` assigned to a team member, including assignments added after opening. Existing author notifications are unaffected.
+  - `notifyAssignedFluxPRs`: Optional boolean, default `false`. Set to `true` to send each assigned team member a direct message for PRs in `loveholidays/flux`, including assignments added after opening. Comments and status reactions follow each DM thread. These PRs are not posted to the team channel. Other author notifications retain their existing behaviour. Assignees must have a `githubEmailToSlackEmail` mapping; lookup or DM failures are logged without falling back to the channel.
   - `ignoredPRUsers`: Users in the github team to ignore opened PRs for. Their comments will still show up in threads.
   - `ignoredCommentUsers`: Users to ignore PR comments from. Recommended to add any automated github app account
 - `slack`:

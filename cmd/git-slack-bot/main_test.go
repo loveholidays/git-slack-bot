@@ -29,7 +29,7 @@ func TestAssignmentNotificationConfiguration(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			transport := &startupTransport{}
 			installStartupDependencies(t, transport)
-			configuration := "github:\n  token: test-github-token\n  org: loveholidays\n  team: Trading OS\n  secretKey: test-secret\n" + testCase.setting + "slack:\n  token: test-slack-token\n  channelID: reviews\n"
+			configuration := "github:\n  token: test-github-token\n  org: loveholidays\n  team: Trading OS\n  secretKey: test-secret\n" + testCase.setting + "slack:\n  token: test-slack-token\n  channelID: reviews\n  githubEmailToSlackEmail:\n    - githubEmail: member\n      slackEmail: member@example.com\n"
 			configurationPath := filepath.Join(t.TempDir(), "config.yaml")
 			if err := os.WriteFile(configurationPath, []byte(configuration), 0o600); err != nil {
 				t.Fatal(err)
@@ -97,11 +97,24 @@ func (transport *startupTransport) RoundTrip(request *http.Request) (*http.Respo
 		body = `[{"id":2,"name":"Trading OS"}]`
 	case "/organizations/1/team/2/members":
 		body = `[{"login":"member"}]`
+	case "/api/users.lookupByEmail":
+		body = `{"ok":true,"user":{"id":"member-id"}}`
+	case "/api/conversations.open":
+		if request.FormValue("users") != "member-id" {
+			return nil, fmt.Errorf("unexpected DM recipient")
+		}
+		body = `{"ok":true,"channel":{"id":"direct-message"}}`
 	case "/api/conversations.history":
+		if request.FormValue("channel") != "direct-message" {
+			return nil, fmt.Errorf("unexpected history channel")
+		}
 		body = `{"ok":true,"messages":[]}`
 	case "/api/chat.postMessage":
+		if request.FormValue("channel") != "direct-message" {
+			return nil, fmt.Errorf("unexpected post channel")
+		}
 		transport.posts++
-		body = `{"ok":true,"channel":"reviews","ts":"123.456"}`
+		body = `{"ok":true,"channel":"direct-message","ts":"123.456"}`
 	default:
 		return nil, fmt.Errorf("unexpected outbound request: %s", request.URL)
 	}

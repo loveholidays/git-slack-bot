@@ -80,17 +80,27 @@ func (g *GitHandler) HandlePullRequestEvent(body []byte) {
 	}
 
 	switch event.GetAction() {
-	case opened, readyForReview:
-		g.notifyPullRequest(pullRequest)
-	case assigned:
-		if g.isTeamAssignment(event) {
-			g.notifyPullRequest(pullRequest)
+	case opened, readyForReview, assigned:
+		if pullRequest.GetDraft() || pullRequest.GetState() == closed {
+			return
 		}
-	case closed:
-		g.closePullRequest(pullRequest)
-	case reopened:
-		g.reopenPullRequest(pullRequest)
+		if event.GetAction() == assigned && !g.isTeamAssignment(event) {
+			return
+		}
+	case closed, reopened:
+	default:
+		return
 	}
+	g.forEachDestination(event.Repo, pullRequest, func(g *GitHandler) {
+		switch event.GetAction() {
+		case opened, readyForReview, assigned:
+			g.notifyPullRequest(pullRequest)
+		case closed:
+			g.closePullRequest(pullRequest)
+		case reopened:
+			g.reopenPullRequest(pullRequest)
+		}
+	})
 }
 
 func (g *GitHandler) reopenPullRequest(pullRequest *gh.PullRequest) {
@@ -146,12 +156,14 @@ func (g *GitHandler) HandlePullRequestReviewEvent(body []byte) {
 		return
 	}
 
-	switch event.GetAction() {
-	case submitted:
-		g.submitReview(pullRequest, event.Review)
-	case dismissed:
-		g.dismissReview(pullRequest)
-	}
+	g.forEachDestination(event.Repo, pullRequest, func(g *GitHandler) {
+		switch event.GetAction() {
+		case submitted:
+			g.submitReview(pullRequest, event.Review)
+		case dismissed:
+			g.dismissReview(pullRequest)
+		}
+	})
 }
 
 func (g *GitHandler) submitReview(pullRequest *gh.PullRequest, review *gh.PullRequestReview) {
@@ -208,15 +220,17 @@ func (g *GitHandler) handleCommentEvent(body []byte) {
 	if !g.isRelevantComment(event.Repo, pullRequest.User, pullRequest.Assignees, commentAuthor) {
 		return
 	}
-	userDescriptor := g.userService.GetUserDescriptor(commentAuthor)
-	if event.Issue != nil {
-		comment := &gh.IssueComment{User: event.Comment.User, Body: event.Comment.Body, HTMLURL: event.Comment.HTMLURL}
-		message := g.messageBuilder.BuildIssueCommentMessage(userDescriptor, gh.IssueCommentEvent{Comment: comment})
+	g.forEachDestination(event.Repo, pullRequest, func(g *GitHandler) {
+		userDescriptor := g.userService.GetUserDescriptor(commentAuthor)
+		if event.Issue != nil {
+			comment := &gh.IssueComment{User: event.Comment.User, Body: event.Comment.Body, HTMLURL: event.Comment.HTMLURL}
+			message := g.messageBuilder.BuildIssueCommentMessage(userDescriptor, gh.IssueCommentEvent{Comment: comment})
+			g.sendCommentReply(pullRequest.GetHTMLURL(), message)
+			return
+		}
+		message := g.messageBuilder.BuildPRCommentMessage(userDescriptor, event.PullRequestReviewCommentEvent)
 		g.sendCommentReply(pullRequest.GetHTMLURL(), message)
-		return
-	}
-	message := g.messageBuilder.BuildPRCommentMessage(userDescriptor, event.PullRequestReviewCommentEvent)
-	g.sendCommentReply(pullRequest.GetHTMLURL(), message)
+	})
 }
 
 func (g *GitHandler) isRelevantComment(repository *gh.Repository, author *gh.User, assignees []*gh.User, commentAuthor string) bool {
@@ -271,4 +285,35 @@ func (g *GitHandler) isTeamAssignment(event *gh.PullRequestEvent) bool {
 func (g *GitHandler) shouldTrackPullRequest(repository *gh.Repository, pullRequest *gh.PullRequest) bool {
 	return !g.isIgnoredRepo(repository.GetName()) &&
 		g.isRelevantPullRequest(repository, pullRequest.GetUser(), pullRequest.Assignees)
+}
+
+func (g *GitHandler) forEachDestination(repository *gh.Repository, pullRequest *gh.PullRequest, handle func(*GitHandler)) {
+	if !g.githubConfiguration.TracksAssignedFluxPRs(repository.GetFullName()) {
+		handle(g)
+		return
+	}
+	assignees := map[string]bool{}
+	for _, assignee := range pullRequest.Assignees {
+		login := assignee.GetLogin()
+		if assignees[login] || !g.userService.IsTeamMember(login) {
+			continue
+		}
+		assignees[login] = true
+		userID, err := g.userService.GetSlackUserID(login)
+		if err != nil {
+			slog.Error("Could not resolve Flux assignee on Slack", slog.String("assignee", login), slog.Any("error", err))
+			continue
+		}
+		connector, err := g.slackConnector.DirectMessage(userID)
+		if err != nil {
+			slog.Error("Could not open Flux assignee direct message", slog.String("assignee", login), slog.Any("error", err))
+			continue
+		}
+		destination := *g
+		destination.slackConnector = connector
+		handle(&destination)
+	}
+	if len(assignees) == 0 {
+		handle(g)
+	}
 }

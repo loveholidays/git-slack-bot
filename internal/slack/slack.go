@@ -29,6 +29,7 @@ import (
 )
 
 type Client interface {
+	OpenConversation(params *slack.OpenConversationParameters) (*slack.Channel, bool, bool, error)
 	GetConversationHistory(params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	PostMessage(channelID string, options ...slack.MsgOption) (string, string, error)
 	AddReaction(name string, item slack.ItemRef) error
@@ -37,6 +38,7 @@ type Client interface {
 }
 
 type Interactor interface {
+	DirectMessage(userID string) (Interactor, error)
 	SendMessageOnce(notification Notification)
 	SendReply(slackMessage *slack.Message, message string)
 	AddReactionToMessage(reaction string, message *slack.Message)
@@ -46,15 +48,16 @@ type Interactor interface {
 }
 
 type Connector struct {
-	notificationMutex sync.Mutex
+	notificationMutex *sync.Mutex
 	client            Client
 	channelID         string
 }
 
 func NewSlackConnector(cfg config.SlackConfiguration, client Client) *Connector {
 	return &Connector{
-		client:    client,
-		channelID: cfg.ChannelID,
+		notificationMutex: &sync.Mutex{},
+		client:            client,
+		channelID:         cfg.ChannelID,
 	}
 }
 
@@ -97,4 +100,12 @@ func (sc *Connector) GetUserIDByEmail(email string) (string, error) {
 	}
 
 	return user.ID, nil
+}
+
+func (sc *Connector) DirectMessage(userID string) (Interactor, error) {
+	channel, _, _, err := sc.client.OpenConversation(&slack.OpenConversationParameters{Users: []string{userID}})
+	if err != nil {
+		return nil, err
+	}
+	return &Connector{client: sc.client, channelID: channel.ID, notificationMutex: sc.notificationMutex}, nil
 }
