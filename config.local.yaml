@@ -2,8 +2,6 @@ github:
   token: "$GITHUB_TOKEN"
   org: organisation
   team: team
-  assigneeNotifications:
-    directMessageRepos: []
   secretKey: "$GITHUB_WEBHOOK_SECRET"
   ignoredPRUsers:
   ignoredCommentUsers:
@@ -11,9 +9,13 @@ github:
 
 slack:
   token: "$SLACK_TOKEN"
-  channelID: "$CHANNEL_ID"
   fetchMessageCount: 100
   emoji:
     approve: "+1"
     merge: "merged"
     close: "x"
+notifications:
+  - relationship: author
+    repositories: ["*"]
+    destination: channel
+    channelID: "$CHANNEL_ID"

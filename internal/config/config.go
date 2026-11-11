@@ -23,11 +23,14 @@ package config
 import "slices"
 
 type Configuration struct {
-	GitHub GitHubConfiguration `yaml:"github"  required:"true"`
-	Slack  SlackConfiguration  `yaml:"slack"  required:"true"`
+	GitHub        GitHubConfiguration `yaml:"github"  required:"true"`
+	Slack         SlackConfiguration  `yaml:"slack"  required:"true"`
+	Notifications []NotificationRule  `yaml:"notifications"`
 }
 
 type GitHubConfiguration struct {
+	NotificationRules     []NotificationRule                 `yaml:"-"`
+	NotifyAssignedFluxPRs bool                               `yaml:"notifyAssignedFluxPRs"`
 	AssigneeNotifications AssigneeNotificationsConfiguration `yaml:"assigneeNotifications"`
 	Token                 string                             `yaml:"token"  required:"true"`
 	Team                  string                             `yaml:"team"  required:"true"`
@@ -41,7 +44,7 @@ type GitHubConfiguration struct {
 
 type SlackConfiguration struct {
 	Token                   string                    `yaml:"token"  required:"true"`
-	ChannelID               string                    `yaml:"channelID"  required:"true"`
+	ChannelID               string                    `yaml:"channelID"`
 	GithubEmailToSlackEmail []GithubEmailToSlackEmail `yaml:"githubEmailToSlackEmail"`
 	EmojiConfiguration      EmojiConfiguration        `yaml:"emoji"`
 }
@@ -62,5 +65,9 @@ type AssigneeNotificationsConfiguration struct {
 }
 
 func (configuration GitHubConfiguration) TracksAssignedPRs(repository string) bool {
-	return slices.Contains(configuration.AssigneeNotifications.DirectMessageRepos, repository)
+	return slices.Contains(configuration.AssigneeNotifications.DirectMessageRepos, repository) || configuration.tracksLegacyAssignedPRs(repository)
+}
+
+func (configuration GitHubConfiguration) tracksLegacyAssignedPRs(repository string) bool {
+	return configuration.NotifyAssignedFluxPRs && repository == "loveholidays/flux"
 }

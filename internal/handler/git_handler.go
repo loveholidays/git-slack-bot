@@ -246,6 +246,9 @@ func (g *GitHandler) isIgnoredRepo(repoName string) bool {
 }
 
 func (g *GitHandler) isRelevantPullRequest(repository *gh.Repository, author *gh.User, assignees []*gh.User) bool {
+	if g.githubConfiguration.NotificationRules != nil {
+		return g.hasMatchingRule(repository, &gh.PullRequest{User: author, Assignees: assignees})
+	}
 	if g.userService.IsTeamMember(author.GetLogin()) {
 		return true
 	}
@@ -270,6 +273,9 @@ func parseGitEvent[Event any](body []byte) *Event {
 }
 
 func (g *GitHandler) isTeamAssignment(event *gh.PullRequestEvent) bool {
+	if g.githubConfiguration.NotificationRules != nil {
+		return g.matchesAssignmentRule(event)
+	}
 	return g.githubConfiguration.TracksAssignedPRs(event.GetRepo().GetFullName()) &&
 		g.userService.IsTeamMember(event.GetAssignee().GetLogin())
 }
@@ -280,10 +286,18 @@ func (g *GitHandler) shouldTrackPullRequest(repository *gh.Repository, pullReque
 }
 
 func (g *GitHandler) forEachDestination(repository *gh.Repository, pullRequest *gh.PullRequest, handle func(*GitHandler)) {
-	if !g.githubConfiguration.TracksAssignedPRs(repository.GetFullName()) {
+	if g.githubConfiguration.NotificationRules != nil {
+		g.forEachRuleDestination(repository, pullRequest, handle)
+		return
+	}
+	if g.githubConfiguration.NotifyAssignedFluxPRs || !g.githubConfiguration.TracksAssignedPRs(repository.GetFullName()) {
 		handle(g)
 		return
 	}
+	g.forEachAssignedDestination(pullRequest, handle)
+}
+
+func (g *GitHandler) forEachAssignedDestination(pullRequest *gh.PullRequest, handle func(*GitHandler)) {
 	assignees := map[string]bool{}
 	for _, assignee := range pullRequest.Assignees {
 		login := assignee.GetLogin()
@@ -291,14 +305,8 @@ func (g *GitHandler) forEachDestination(repository *gh.Repository, pullRequest *
 			continue
 		}
 		assignees[login] = true
-		userID, err := g.userService.GetSlackUserID(login)
-		if err != nil {
-			slog.Error("Could not resolve PR assignee on Slack", slog.String("assignee", login), slog.Any("error", err))
-			continue
-		}
-		connector, err := g.slackConnector.DirectMessage(userID)
-		if err != nil {
-			slog.Error("Could not open PR assignee direct message", slog.String("assignee", login), slog.Any("error", err))
+		connector := g.directMessageRecipient(login)
+		if connector == nil {
 			continue
 		}
 		destination := *g

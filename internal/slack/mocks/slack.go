@@ -173,6 +173,34 @@ func (mr *MockInteractorMockRecorder) AddReactionToMessage(reaction, message any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddReactionToMessage", reflect.TypeOf((*MockInteractor)(nil).AddReactionToMessage), reaction, message)
 }
 
+// Channel mocks base method.
+func (m *MockInteractor) Channel(channelID string) slack.Interactor {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Channel", channelID)
+	ret0, _ := ret[0].(slack.Interactor)
+	return ret0
+}
+
+// Channel indicates an expected call of Channel.
+func (mr *MockInteractorMockRecorder) Channel(channelID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Channel", reflect.TypeOf((*MockInteractor)(nil).Channel), channelID)
+}
+
+// ConversationID mocks base method.
+func (m *MockInteractor) ConversationID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConversationID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ConversationID indicates an expected call of ConversationID.
+func (mr *MockInteractorMockRecorder) ConversationID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConversationID", reflect.TypeOf((*MockInteractor)(nil).ConversationID))
+}
+
 // DirectMessage mocks base method.
 func (m *MockInteractor) DirectMessage(userID string) (slack.Interactor, error) {
 	m.ctrl.T.Helper()

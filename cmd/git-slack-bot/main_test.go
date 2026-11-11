@@ -18,11 +18,17 @@ import (
 
 func TestAssignmentNotificationConfiguration(t *testing.T) {
 	for _, testCase := range []struct {
-		name      string
-		setting   string
-		wantPosts int
+		name              string
+		setting           string
+		wantPosts         int
+		notifications     string
+		omitLegacyChannel bool
+		destination       string
 	}{
 		{name: "omitted", setting: "", wantPosts: 0},
+		{name: "explicit assignee DM without legacy channel", notifications: "notifications:\n  - relationship: assignee\n    repositories: [example/deployments]\n    destination: directMessage\n", omitLegacyChannel: true, wantPosts: 1},
+		{name: "explicit assignee channel", notifications: "notifications:\n  - relationship: assignee\n    destination: channel\n    channelID: other-reviews\n", omitLegacyChannel: true, destination: "other-reviews", wantPosts: 1},
+		{name: "explicit empty overrides legacy", setting: "  assigneeNotifications:\n    directMessageRepos: [example/deployments]\n", notifications: "notifications: []\n", wantPosts: 0},
 		{name: "disabled", setting: "  assigneeNotifications:\n    directMessageRepos: []\n", wantPosts: 0},
 		{name: "configured repository", setting: "  assigneeNotifications:\n    directMessageRepos: [example/deployments]\n", wantPosts: 1},
 		{name: "unconfigured repository", setting: "  assigneeNotifications:\n    directMessageRepos: [example/backend]\n", wantPosts: 0},
@@ -30,9 +36,13 @@ func TestAssignmentNotificationConfiguration(t *testing.T) {
 		{name: "multiple repositories", setting: "  assigneeNotifications:\n    directMessageRepos: [example/backend, example/deployments]\n", wantPosts: 1},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			transport := &startupTransport{}
+			transport := &startupTransport{destination: testCase.destination}
 			installStartupDependencies(t, transport)
 			configuration := "github:\n  token: test-github-token\n  org: loveholidays\n  team: Trading OS\n  secretKey: test-secret\n" + testCase.setting + "slack:\n  token: test-slack-token\n  channelID: reviews\n  githubEmailToSlackEmail:\n    - githubEmail: member\n      slackEmail: member@example.com\n"
+			configuration += testCase.notifications
+			if testCase.omitLegacyChannel {
+				configuration = strings.Replace(configuration, "  channelID: reviews\n", "", 1)
+			}
 			configurationPath := filepath.Join(t.TempDir(), "config.yaml")
 			if err := os.WriteFile(configurationPath, []byte(configuration), 0o600); err != nil {
 				t.Fatal(err)
@@ -88,11 +98,12 @@ func sendAssignmentWebhook(t *testing.T) {
 }
 
 type startupTransport struct {
-	posts int
+	destination string
+	posts       int
 }
 
 func (transport *startupTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	if err := validateStartupSlackDestination(request); err != nil {
+	if err := transport.validateSlackDestination(request); err != nil {
 		return nil, err
 	}
 	responses := map[string]string{
@@ -127,14 +138,18 @@ func TestInvalidConfiguration(t *testing.T) {
 	}
 }
 
-func validateStartupSlackDestination(request *http.Request) error {
+func (transport *startupTransport) validateSlackDestination(request *http.Request) error {
+	expected := transport.destination
+	if expected == "" {
+		expected = "direct-message"
+	}
 	switch request.URL.Path {
 	case "/api/conversations.open":
 		if request.FormValue("users") != "member-id" {
 			return fmt.Errorf("unexpected DM recipient")
 		}
 	case "/api/conversations.history", "/api/chat.postMessage":
-		if request.FormValue("channel") != "direct-message" {
+		if request.FormValue("channel") != expected {
 			return fmt.Errorf("unexpected Slack channel")
 		}
 	}

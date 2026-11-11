@@ -38,6 +38,8 @@ type Client interface {
 }
 
 type Interactor interface {
+	Channel(channelID string) Interactor
+	ConversationID() string
 	DirectMessage(userID string) (Interactor, error)
 	SendMessageOnce(notification Notification)
 	SendReply(slackMessage *slack.Message, message string)
