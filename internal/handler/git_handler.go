@@ -249,7 +249,7 @@ func (g *GitHandler) isRelevantPullRequest(repository *gh.Repository, author *gh
 	if g.userService.IsTeamMember(author.GetLogin()) {
 		return true
 	}
-	if !g.githubConfiguration.TracksAssignedFluxPRs(repository.GetFullName()) {
+	if !g.githubConfiguration.TracksAssignedPRs(repository.GetFullName()) {
 		return false
 	}
 	for _, assignee := range assignees {
@@ -270,7 +270,7 @@ func parseGitEvent[Event any](body []byte) *Event {
 }
 
 func (g *GitHandler) isTeamAssignment(event *gh.PullRequestEvent) bool {
-	return g.githubConfiguration.TracksAssignedFluxPRs(event.GetRepo().GetFullName()) &&
+	return g.githubConfiguration.TracksAssignedPRs(event.GetRepo().GetFullName()) &&
 		g.userService.IsTeamMember(event.GetAssignee().GetLogin())
 }
 
@@ -280,7 +280,7 @@ func (g *GitHandler) shouldTrackPullRequest(repository *gh.Repository, pullReque
 }
 
 func (g *GitHandler) forEachDestination(repository *gh.Repository, pullRequest *gh.PullRequest, handle func(*GitHandler)) {
-	if !g.githubConfiguration.TracksAssignedFluxPRs(repository.GetFullName()) {
+	if !g.githubConfiguration.TracksAssignedPRs(repository.GetFullName()) {
 		handle(g)
 		return
 	}
@@ -293,12 +293,12 @@ func (g *GitHandler) forEachDestination(repository *gh.Repository, pullRequest *
 		assignees[login] = true
 		userID, err := g.userService.GetSlackUserID(login)
 		if err != nil {
-			slog.Error("Could not resolve Flux assignee on Slack", slog.String("assignee", login), slog.Any("error", err))
+			slog.Error("Could not resolve PR assignee on Slack", slog.String("assignee", login), slog.Any("error", err))
 			continue
 		}
 		connector, err := g.slackConnector.DirectMessage(userID)
 		if err != nil {
-			slog.Error("Could not open Flux assignee direct message", slog.String("assignee", login), slog.Any("error", err))
+			slog.Error("Could not open PR assignee direct message", slog.String("assignee", login), slog.Any("error", err))
 			continue
 		}
 		destination := *g

@@ -2,6 +2,8 @@ github:
   token: "$GITHUB_TOKEN"
   org: organisation
   team: team
+  assigneeNotifications:
+    directMessageRepos: []
   secretKey: "$GITHUB_WEBHOOK_SECRET"
   ignoredPRUsers:
   ignoredCommentUsers:

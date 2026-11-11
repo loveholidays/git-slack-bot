@@ -20,21 +20,23 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 //nolint:tagliatelle //Yaml camel case instead of snake case
 package config
 
+import "slices"
+
 type Configuration struct {
 	GitHub GitHubConfiguration `yaml:"github"  required:"true"`
 	Slack  SlackConfiguration  `yaml:"slack"  required:"true"`
 }
 
 type GitHubConfiguration struct {
-	NotifyAssignedFluxPRs bool     `yaml:"notifyAssignedFluxPRs"`
-	Token                 string   `yaml:"token"  required:"true"`
-	Team                  string   `yaml:"team"  required:"true"`
-	Org                   string   `yaml:"org"  required:"true"`
-	IgnoredPRUsers        []string `yaml:"ignoredPRUsers"`
-	IgnoredRepos          []string `yaml:"ignoredRepos"`
-	SecretKey             string   `yaml:"secretKey"  required:"true"`
-	IgnoredCommentUsers   []string `yaml:"ignoredCommentUsers"`
-	IgnoredReviewUsers    []string `yaml:"ignoredReviewUsers"`
+	AssigneeNotifications AssigneeNotificationsConfiguration `yaml:"assigneeNotifications"`
+	Token                 string                             `yaml:"token"  required:"true"`
+	Team                  string                             `yaml:"team"  required:"true"`
+	Org                   string                             `yaml:"org"  required:"true"`
+	IgnoredPRUsers        []string                           `yaml:"ignoredPRUsers"`
+	IgnoredRepos          []string                           `yaml:"ignoredRepos"`
+	SecretKey             string                             `yaml:"secretKey"  required:"true"`
+	IgnoredCommentUsers   []string                           `yaml:"ignoredCommentUsers"`
+	IgnoredReviewUsers    []string                           `yaml:"ignoredReviewUsers"`
 }
 
 type SlackConfiguration struct {
@@ -55,6 +57,10 @@ type GithubEmailToSlackEmail struct {
 	SlackEmail  string `yaml:"slackEmail"`
 }
 
-func (configuration GitHubConfiguration) TracksAssignedFluxPRs(repository string) bool {
-	return configuration.NotifyAssignedFluxPRs && repository == "loveholidays/flux"
+type AssigneeNotificationsConfiguration struct {
+	DirectMessageRepos []string `yaml:"directMessageRepos"`
+}
+
+func (configuration GitHubConfiguration) TracksAssignedPRs(repository string) bool {
+	return slices.Contains(configuration.AssigneeNotifications.DirectMessageRepos, repository)
 }

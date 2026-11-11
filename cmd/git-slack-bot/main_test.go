@@ -23,8 +23,11 @@ func TestAssignmentNotificationConfiguration(t *testing.T) {
 		wantPosts int
 	}{
 		{name: "omitted", setting: "", wantPosts: 0},
-		{name: "disabled", setting: "  notifyAssignedFluxPRs: false\n", wantPosts: 0},
-		{name: "enabled", setting: "  notifyAssignedFluxPRs: true\n", wantPosts: 1},
+		{name: "disabled", setting: "  assigneeNotifications:\n    directMessageRepos: []\n", wantPosts: 0},
+		{name: "configured repository", setting: "  assigneeNotifications:\n    directMessageRepos: [example/deployments]\n", wantPosts: 1},
+		{name: "unconfigured repository", setting: "  assigneeNotifications:\n    directMessageRepos: [example/backend]\n", wantPosts: 0},
+		{name: "different owner", setting: "  assigneeNotifications:\n    directMessageRepos: [another-org/deployments]\n", wantPosts: 0},
+		{name: "multiple repositories", setting: "  assigneeNotifications:\n    directMessageRepos: [example/backend, example/deployments]\n", wantPosts: 1},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			transport := &startupTransport{}
@@ -68,7 +71,7 @@ func installStartupDependencies(t *testing.T, transport http.RoundTripper) {
 
 func sendAssignmentWebhook(t *testing.T) {
 	t.Helper()
-	body := `{"action":"assigned","assignee":{"login":"member"},"repository":{"name":"flux","full_name":"loveholidays/flux"},"pull_request":{"user":{"login":"external"},"assignees":[{"login":"member"}],"title":"Update deployment","html_url":"https://github.com/loveholidays/flux/pull/42","created_at":"2026-10-21T12:00:00Z"}}`
+	body := `{"action":"assigned","assignee":{"login":"member"},"repository":{"name":"deployments","full_name":"example/deployments"},"pull_request":{"user":{"login":"external"},"assignees":[{"login":"member"}],"title":"Update deployment","html_url":"https://github.com/example/deployments/pull/42","created_at":"2026-10-21T12:00:00Z"}}`
 	signature := hmac.New(sha256.New, []byte("test-secret"))
 	if _, err := signature.Write([]byte(body)); err != nil {
 		t.Fatal(err)
