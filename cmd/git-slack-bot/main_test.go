@@ -18,27 +18,22 @@ import (
 
 func TestAssignmentNotificationConfiguration(t *testing.T) {
 	for _, testCase := range []struct {
-		name              string
-		wantPosts         int
-		notifications     string
-		omitLegacyChannel bool
-		destination       string
+		name          string
+		notifications string
+		author        string
+		destination   string
+		wantPosts     int
 	}{
-		{name: "omitted", wantPosts: 0},
-		{name: "explicit assignee DM without legacy channel", notifications: "notifications:\n  - relationship: assignee\n    repositories: [example/deployments]\n    destination: directMessage\n", omitLegacyChannel: true, wantPosts: 1},
-		{name: "explicit assignee channel", notifications: "notifications:\n  - relationship: assignee\n    destination: channel\n    channelID: other-reviews\n", omitLegacyChannel: true, destination: "other-reviews", wantPosts: 1},
-		{name: "disabled", notifications: "notifications: []\n", wantPosts: 0},
-		{name: "configured repository", notifications: "notifications:\n  - relationship: assignee\n    repositories: [example/deployments]\n    destination: directMessage\n", wantPosts: 1},
-		{name: "unconfigured repository", notifications: "notifications:\n  - relationship: assignee\n    repositories: [example/backend]\n    destination: directMessage\n", wantPosts: 0},
-		{name: "different owner", notifications: "notifications:\n  - relationship: assignee\n    repositories: [another-org/deployments]\n    destination: directMessage\n", wantPosts: 0},
-		{name: "multiple repositories", notifications: "notifications:\n  - relationship: assignee\n    repositories: [example/backend, example/deployments]\n    destination: directMessage\n", wantPosts: 1},
+		{name: "legacy authored channel", author: "member", destination: "reviews", wantPosts: 1},
+		{name: "assignee DM without legacy channel", notifications: "notifications:\n  - relationship: assignee\n    repositories: [example/deployments]\n    destination: directMessage\n", wantPosts: 1},
+		{name: "empty rules disable authored notifications", notifications: "notifications: []\n", author: "member", wantPosts: 0},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			transport := &startupTransport{destination: testCase.destination}
 			installStartupDependencies(t, transport)
 			configuration := "github:\n  token: test-github-token\n  org: loveholidays\n  team: Trading OS\n  secretKey: test-secret\nslack:\n  token: test-slack-token\n  channelID: reviews\n  githubEmailToSlackEmail:\n    - githubEmail: member\n      slackEmail: member@example.com\n"
 			configuration += testCase.notifications
-			if testCase.omitLegacyChannel {
+			if testCase.notifications != "" {
 				configuration = strings.Replace(configuration, "  channelID: reviews\n", "", 1)
 			}
 			configurationPath := filepath.Join(t.TempDir(), "config.yaml")
@@ -50,7 +45,7 @@ func TestAssignmentNotificationConfiguration(t *testing.T) {
 				if server.Addr != ":8080" {
 					t.Errorf("unexpected server address: %s", server.Addr)
 				}
-				sendAssignmentWebhook(t)
+				sendPullRequestWebhook(t, testCase.author)
 				return errors.New("test server stopped")
 			}
 			main()
@@ -77,9 +72,12 @@ func installStartupDependencies(t *testing.T, transport http.RoundTripper) {
 	})
 }
 
-func sendAssignmentWebhook(t *testing.T) {
+func sendPullRequestWebhook(t *testing.T, author string) {
 	t.Helper()
-	body := `{"action":"assigned","assignee":{"login":"member"},"repository":{"name":"deployments","full_name":"example/deployments"},"pull_request":{"user":{"login":"external"},"assignees":[{"login":"member"}],"title":"Update deployment","html_url":"https://github.com/example/deployments/pull/42","created_at":"2026-10-21T12:00:00Z"}}`
+	body := `{"action":"opened","assignee":{"login":"member"},"repository":{"name":"deployments","full_name":"example/deployments"},"pull_request":{"user":{"login":"external"},"assignees":[{"login":"member"}],"title":"Update deployment","html_url":"https://github.com/example/deployments/pull/42","created_at":"2026-10-21T12:00:00Z"}}`
+	if author != "" {
+		body = strings.Replace(body, `"login":"external"`, fmt.Sprintf(`"login":%q`, author), 1)
+	}
 	signature := hmac.New(sha256.New, []byte("test-secret"))
 	if _, err := signature.Write([]byte(body)); err != nil {
 		t.Fatal(err)
