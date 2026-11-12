@@ -13,6 +13,8 @@ func TestNotificationConfigurationValidation(t *testing.T) {
 		valid bool
 	}{
 		{name: "author channel", rule: config.NotificationRule{Relationship: "author", Destination: "channel", ChannelID: "reviews"}, valid: true},
+		{name: "dependabot channel", rule: config.NotificationRule{Relationship: "dependabot", Destination: "channel", ChannelID: "reviews", Repositories: []string{"example/backend"}}, valid: true},
+		{name: "dependabot cannot receive DMs", rule: config.NotificationRule{Relationship: "dependabot", Destination: "directMessage"}},
 		{name: "assignee DM", rule: config.NotificationRule{Relationship: "assignee", Destination: "directMessage", Repositories: []string{"example/deployments"}}, valid: true},
 		{name: "invalid relationship", rule: config.NotificationRule{Relationship: "reviewer", Destination: "directMessage"}},
 		{name: "invalid destination", rule: config.NotificationRule{Relationship: "author", Destination: "email"}},

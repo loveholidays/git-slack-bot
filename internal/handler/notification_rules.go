@@ -64,6 +64,12 @@ func (g *GitHandler) notificationTargets(repository *gh.Repository, pullRequest 
 }
 
 func (g *GitHandler) ruleTargets(rule config.NotificationRule, pullRequest *gh.PullRequest) []notificationTarget {
+	if rule.Relationship == "dependabot" && pullRequest.GetUser().GetLogin() != "dependabot[bot]" {
+		return nil
+	}
+	if rule.Relationship == "dependabot" {
+		return []notificationTarget{{channelID: rule.ChannelID}}
+	}
 	users := pullRequest.Assignees
 	if rule.Relationship == "author" {
 		users = []*gh.User{pullRequest.GetUser()}
