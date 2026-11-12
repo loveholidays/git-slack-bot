@@ -67,7 +67,7 @@ make build
 ## Quick Start
 
 1. **Create GitHub App**: Set up a GitHub App with webhook permissions
-2. **Create Slack App**: Set up a Slack App with chat:write and reactions:write permissions
+2. **Create Slack App**: Configure the [Slack app permissions](#slack-app-setup). Direct-message rules also require `im:write` and `im:history`.
 3. **Configure the bot**: Create a `config.yaml` file (see example below)
 4. **Deploy**: Use Docker or binary deployment
 5. **Set webhook URL**: Point your GitHub App webhook to your deployment
@@ -127,11 +127,18 @@ Before setting up git-slack-bot, you'll need:
 ### Slack App Setup
 - A Slack App with the following OAuth scopes:
   - `chat:write` - Post messages to channels
-  - `im:write` - Open direct messages for notification rules
-  - `im:history` - Find existing DM notifications for deduplication and thread updates
+  - `im:write` - Open direct messages (required for `destination: directMessage`)
+  - `im:history` - Find existing DM notifications for deduplication and thread updates (required for `destination: directMessage`)
   - `chat:write.public` - Post to public channels without joining
   - `reactions:write` - Add emoji reactions
   - `channels:read` - List public channels (optional, for channel name resolution)
+
+If any notification rule uses `destination: directMessage`, add **both** IM scopes under **OAuth & Permissions → Scopes → Bot Token Scopes** in [your Slack app settings](https://api.slack.com/apps). Channel-only configurations do not need these additional scopes.
+
+For an already installed app, adding scopes does not grant them to the installed bot automatically:
+
+1. Reinstall/reauthorize the app in the workspace after adding the scopes.
+2. If Slack requires approval, use **Re-request approval** and have a workspace owner or app manager approve the new scopes, then complete reauthorization.
 
 ### Infrastructure
 - A publicly accessible endpoint for webhook delivery
