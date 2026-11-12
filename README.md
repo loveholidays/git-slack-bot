@@ -139,7 +139,6 @@ For an already installed app, adding scopes does not grant them to the installed
 
 1. Reinstall/reauthorize the app in the workspace after adding the scopes.
 2. If Slack requires approval, use **Re-request approval** and have a workspace owner or app manager approve the new scopes, then complete reauthorization.
-3. If Slack issues a different bot token, update the deployed `SLACK_TOKEN` secret and restart the bot to load it.
 
 ### Infrastructure
 - A publicly accessible endpoint for webhook delivery
