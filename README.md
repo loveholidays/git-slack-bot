@@ -171,13 +171,28 @@ correct user. Any missing users will be posted with their github user names into
 
 | Field | Meaning |
 | --- | --- |
-| `relationship` | `author` or `assignee`; only members of the configured GitHub team qualify. |
+| `relationship` | `author` or `assignee` for members of the configured GitHub team; `dependabot` for PRs authored by `dependabot[bot]`. |
 | `repositories` | Full `owner/repository` names, or `"*"` for all repositories. Omitted or empty means all repositories. |
 | `excludedRepositories` | Repository names to exclude from this rule. Exclusions override inclusions. |
 | `destination` | `channel` or `directMessage`. |
 | `channelID` | Required for `channel`; omit for `directMessage`. |
 
 All matching rules apply. A PR that a team member both authors and is assigned can notify a channel and that member's DM. Rules targeting the same conversation share one PR notification and one thread update per event. Exclusions only affect their own rule. `github.ignoredRepos` continues to exclude repositories globally.
+
+Dependabot rules use channel destinations. Scope them to your team's repositories explicitly; the repository list is maintained in configuration rather than inferred from the PR author:
+
+```yaml
+notifications:
+  - relationship: author
+    destination: channel
+    channelID: C1234567890
+  - relationship: dependabot
+    repositories: ["your-org/backend", "your-org/flight-club"]
+    destination: channel
+    channelID: C1234567890
+```
+
+Draft handling, threaded comments, and status reactions apply to Dependabot PRs too. Existing rules remain unchanged unless a Dependabot rule is added.
 
 For DMs, the relationship determines recipients: the team author or every team assignee. Recipients must have a `slack.githubEmailToSlackEmail` mapping. Despite its name, each mapping's `githubEmail` is a GitHub login. Missing mappings and Slack failures are logged without falling back to a channel. The bot identity comes from `slack.token`.
 
