@@ -26,7 +26,10 @@ import (
 	"errors"
 	"git-slack-bot/internal/config"
 	"log/slog"
+	"net/url"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/google/go-github/v93/github"
 	"golang.org/x/oauth2"
@@ -37,6 +40,7 @@ type Client interface {
 	ListTeamMembers(ctx context.Context, team, orgID int64, opt *github.TeamListTeamMembersOptions) ([]*github.User, error)
 	GetOrg(ctx context.Context, orgName string) (*github.Organization, error)
 	GetStack(ctx context.Context, owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error)
+	GetPullRequest(ctx context.Context, owner, repo string, number int) (*github.PullRequest, error)
 }
 
 type ExternalClient struct {
@@ -77,9 +81,15 @@ func (c *ExternalClient) GetStack(ctx context.Context, owner, repo string, stack
 	return stack, err
 }
 
+func (c *ExternalClient) GetPullRequest(ctx context.Context, owner, repo string, number int) (*github.PullRequest, error) {
+	pullRequest, _, err := c.client.PullRequests.Get(ctx, owner, repo, number)
+	return pullRequest, err
+}
+
 type Interactor interface {
 	GetTeamMembers() []string
 	GetStack(owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error)
+	GetPullRequest(pullRequestURL string) (*github.PullRequest, error)
 }
 
 type Connector struct {
@@ -103,6 +113,22 @@ func (ghc *Connector) GetStack(owner, repo string, stackNumber int) (*github.Pul
 		return nil, nil
 	}
 	return stack, nil
+}
+
+func (ghc *Connector) GetPullRequest(pullRequestURL string) (*github.PullRequest, error) {
+	parsed, err := url.Parse(pullRequestURL)
+	if err != nil {
+		return nil, err
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) != 4 || parts[2] != "pull" {
+		return nil, errors.New("invalid pull request URL")
+	}
+	number, err := strconv.Atoi(parts[3])
+	if err != nil {
+		return nil, err
+	}
+	return ghc.client.GetPullRequest(ghc.ctx, parts[0], parts[1], number)
 }
 
 func NewGitHubConnector(ctx context.Context, cfg config.GitHubConfiguration, client Client) (*Connector, error) {
