@@ -52,7 +52,6 @@ func (sc *Connector) SendMessageOnce(notification Notification) {
 	sc.SendMessage(notification.Text)
 }
 
-// SendOrUpdateMessage is implemented in the stack client operations follow-up.
 func (sc *Connector) SendOrUpdateMessage(Notification) {}
 
 func (sc *Connector) findNotification(notification Notification) (*slack.Message, error) {

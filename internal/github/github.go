@@ -136,7 +136,6 @@ func (ghc *Connector) GetTeamMembers() []string {
 	return users
 }
 
-// GetStack is implemented in the stack client operations follow-up.
 func (ghc *Connector) GetStack(string, string, int) (*github.PullRequestStackDetails, error) {
 	return nil, nil
 }

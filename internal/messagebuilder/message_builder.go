@@ -43,7 +43,6 @@ func (m *MessageBuilder) BuildIssueCommentMessage(userDescriptor string, event g
 	return fmt.Sprintf("%s left a <%s|comment>:\n%s", userDescriptor, event.Comment.GetHTMLURL(), event.Comment.GetBody())
 }
 
-// Stack message formatting is implemented in the rendering follow-up.
 func (m *MessageBuilder) BuildPRStackMessage(gh.PullRequestStackDetails, string, config.EmojiConfiguration) string {
 	return ""
 }
