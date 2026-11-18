@@ -3,7 +3,7 @@ module git-slack-bot
 go 1.26.10
 
 require (
-	github.com/google/go-github/v56 v56.0.0
+	github.com/google/go-github/v93 v93.0.0
 	github.com/loveholidays/go-config-loader v0.0.0-20241211150814-dc186d50df8d
 	github.com/onsi/ginkgo/v2 v2.29.0
 	github.com/onsi/gomega v1.40.0
@@ -17,7 +17,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20260402051712-545e8a4df936 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect

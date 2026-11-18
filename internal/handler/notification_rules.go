@@ -3,7 +3,7 @@ package handler
 import (
 	"git-slack-bot/internal/config"
 	"git-slack-bot/internal/slack"
-	gh "github.com/google/go-github/v56/github"
+	gh "github.com/google/go-github/v93/github"
 	"log/slog"
 )
 

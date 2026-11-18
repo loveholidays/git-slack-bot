@@ -21,7 +21,7 @@ package messagebuilder
 
 import (
 	"fmt"
-	gh "github.com/google/go-github/v56/github"
+	gh "github.com/google/go-github/v93/github"
 )
 
 type MessageBuilder struct{}

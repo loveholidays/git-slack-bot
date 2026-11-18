@@ -27,7 +27,7 @@ import (
 	"git-slack-bot/internal/config"
 	"log/slog"
 
-	"github.com/google/go-github/v56/github"
+	"github.com/google/go-github/v93/github"
 	"golang.org/x/oauth2"
 )
 
@@ -41,15 +41,18 @@ type ExternalClient struct {
 	client *github.Client
 }
 
-func NewExternalClient(ctx context.Context, gitHubToken string) *ExternalClient {
+func NewExternalClient(ctx context.Context, gitHubToken string) (*ExternalClient, error) {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: gitHubToken},
 	)
 	tc := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(tc)
+	client, err := github.NewClient(github.WithHTTPClient(tc))
+	if err != nil {
+		return nil, err
+	}
 	return &ExternalClient{
 		client: client,
-	}
+	}, nil
 }
 
 func (c *ExternalClient) ListTeams(ctx context.Context, org string, options *github.ListOptions) ([]*github.Team, error) {

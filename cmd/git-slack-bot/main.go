@@ -38,10 +38,11 @@ func main() {
 	slackConnector := slack.NewSlackConnector(cfg.Slack, externalSlackClient)
 
 	ctx := context.Background()
-	gitHubClient := github.NewExternalClient(ctx, cfg.GitHub.Token)
-	gitHubConnector, err := github.NewGitHubConnector(ctx, cfg.GitHub, gitHubClient)
+	gitHubConnector, err := newGitHubConnector(ctx, cfg.GitHub)
 	if err != nil {
 		slog.Error("Failed to establish GitHub connection", slog.Any("error", err))
+		exitProcess(1)
+		return
 	}
 
 	userService := user.NewService(slackConnector, gitHubConnector.GetTeamMembers(), cfg.Slack.GithubEmailToSlackEmail, cfg.GitHub.IgnoredCommentUsers, cfg.GitHub.IgnoredReviewUsers)
@@ -70,4 +71,12 @@ func main() {
 	if err != nil {
 		slog.Error("Server error", slog.Any("error", err))
 	}
+}
+
+func newGitHubConnector(ctx context.Context, cfg config.GitHubConfiguration) (*github.Connector, error) {
+	client, err := github.NewExternalClient(ctx, cfg.Token)
+	if err != nil {
+		return nil, err
+	}
+	return github.NewGitHubConnector(ctx, cfg, client)
 }
