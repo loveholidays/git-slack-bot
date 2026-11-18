@@ -55,9 +55,6 @@ func (n *singlePRNotifier) NotifyPullRequestReopened(connector slack.Interactor,
 }
 
 func (n *singlePRNotifier) NotifyPullRequestOpened(connector slack.Interactor, pullRequest *gh.PullRequest) {
-	if pullRequest.GetDraft() || pullRequest.GetState() == closed {
-		return
-	}
 	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
 	message := n.messageBuilder.BuildPRMessage(n.userService.GetUserDescriptor(pullRequest.GetUser().GetLogin()), pullRequest)
 	connector.SendMessageOnce(slack.Notification{Key: messageKey, Text: message, CreatedAt: pullRequest.GetCreatedAt().Time})
