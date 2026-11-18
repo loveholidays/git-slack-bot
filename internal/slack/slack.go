@@ -32,6 +32,7 @@ type Client interface {
 	OpenConversation(params *slack.OpenConversationParameters) (*slack.Channel, bool, bool, error)
 	GetConversationHistory(params *slack.GetConversationHistoryParameters) (*slack.GetConversationHistoryResponse, error)
 	PostMessage(channelID string, options ...slack.MsgOption) (string, string, error)
+	UpdateMessage(channelID, timestamp string, options ...slack.MsgOption) (string, string, string, error)
 	AddReaction(name string, item slack.ItemRef) error
 	RemoveReaction(name string, item slack.ItemRef) error
 	GetUserByEmail(email string) (*slack.User, error)
@@ -42,6 +43,7 @@ type Interactor interface {
 	ConversationID() string
 	DirectMessage(userID string) (Interactor, error)
 	SendMessageOnce(notification Notification)
+	SendOrUpdateMessage(notification Notification)
 	SendReply(slackMessage *slack.Message, message string)
 	AddReactionToMessage(reaction string, message *slack.Message)
 	RemoveReactionFromMessage(reaction string, message *slack.Message)

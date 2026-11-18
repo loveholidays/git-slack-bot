@@ -137,6 +137,28 @@ func (mr *MockClientMockRecorder) RemoveReaction(name, item any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveReaction", reflect.TypeOf((*MockClient)(nil).RemoveReaction), name, item)
 }
 
+// UpdateMessage mocks base method.
+func (m *MockClient) UpdateMessage(channelID, timestamp string, options ...slack0.MsgOption) (string, string, string, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{channelID, timestamp}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UpdateMessage", varargs...)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(string)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
+}
+
+// UpdateMessage indicates an expected call of UpdateMessage.
+func (mr *MockClientMockRecorder) UpdateMessage(channelID, timestamp any, options ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{channelID, timestamp}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMessage", reflect.TypeOf((*MockClient)(nil).UpdateMessage), varargs...)
+}
+
 // MockInteractor is a mock of Interactor interface.
 type MockInteractor struct {
 	ctrl     *gomock.Controller
@@ -268,6 +290,18 @@ func (m *MockInteractor) SendMessageOnce(notification slack.Notification) {
 func (mr *MockInteractorMockRecorder) SendMessageOnce(notification any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessageOnce", reflect.TypeOf((*MockInteractor)(nil).SendMessageOnce), notification)
+}
+
+// SendOrUpdateMessage mocks base method.
+func (m *MockInteractor) SendOrUpdateMessage(notification slack.Notification) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SendOrUpdateMessage", notification)
+}
+
+// SendOrUpdateMessage indicates an expected call of SendOrUpdateMessage.
+func (mr *MockInteractorMockRecorder) SendOrUpdateMessage(notification any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendOrUpdateMessage", reflect.TypeOf((*MockInteractor)(nil).SendOrUpdateMessage), notification)
 }
 
 // SendReply mocks base method.

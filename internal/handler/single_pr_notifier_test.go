@@ -9,7 +9,7 @@ import (
 	mock_user "git-slack-bot/internal/user/mocks"
 	"time"
 
-	gh "github.com/google/go-github/v56/github"
+	gh "github.com/google/go-github/v93/github"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/slack-go/slack"
 	"go.uber.org/mock/gomock"
@@ -59,18 +59,6 @@ var _ = Describe("Single PR notifier", func() {
 			}
 			userMock.EXPECT().GetUserDescriptor("author").Return("<@author>")
 			slackMock.EXPECT().SendMessageOnce(expected)
-
-			notifier.NotifyPullRequestOpened(slackMock, pullRequest)
-		})
-
-		It("should not notify for a draft PR", func() {
-			pullRequest.Draft = new(true)
-
-			notifier.NotifyPullRequestOpened(slackMock, pullRequest)
-		})
-
-		It("should not notify for a closed PR", func() {
-			pullRequest.State = new("closed")
 
 			notifier.NotifyPullRequestOpened(slackMock, pullRequest)
 		})

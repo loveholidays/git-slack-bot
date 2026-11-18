@@ -13,7 +13,7 @@ import (
 	slack "git-slack-bot/internal/slack"
 	reflect "reflect"
 
-	github "github.com/google/go-github/v56/github"
+	github "github.com/google/go-github/v93/github"
 	gomock "go.uber.org/mock/gomock"
 )
 

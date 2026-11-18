@@ -35,7 +35,7 @@ type Notification struct {
 	CreatedAt time.Time
 }
 
-var errMessageNotFound = errors.New("could not find message")
+var ErrMessageNotFound = errors.New("could not find message")
 
 func (sc *Connector) SendMessageOnce(notification Notification) {
 	sc.notificationMutex.Lock()
@@ -45,11 +45,33 @@ func (sc *Connector) SendMessageOnce(notification Notification) {
 	if err == nil {
 		return
 	}
-	if !errors.Is(err, errMessageNotFound) {
+	if !errors.Is(err, ErrMessageNotFound) {
 		slog.Error("Could not check for an existing notification", slog.Any("error", err))
 		return
 	}
 	sc.SendMessage(notification.Text)
+}
+
+func (sc *Connector) SendOrUpdateMessage(notification Notification) {
+	sc.notificationMutex.Lock()
+	defer sc.notificationMutex.Unlock()
+
+	message, err := sc.findNotification(notification)
+	if errors.Is(err, ErrMessageNotFound) {
+		sc.SendMessage(notification.Text)
+		return
+	}
+	if err != nil {
+		slog.Error("Could not check for an existing notification", slog.Any("error", err))
+		return
+	}
+	if message.Text == notification.Text {
+		return
+	}
+	_, _, _, err = sc.client.UpdateMessage(sc.channelID, message.Timestamp, slack.MsgOptionText(notification.Text, false))
+	if err != nil {
+		slog.Error("Failed to update message in slack", slog.Any("error", err))
+	}
 }
 
 func (sc *Connector) findNotification(notification Notification) (*slack.Message, error) {
@@ -66,7 +88,7 @@ func (sc *Connector) findNotification(notification Notification) (*slack.Message
 			return message, nil
 		}
 		if history.ResponseMetaData.NextCursor == "" {
-			return nil, errMessageNotFound
+			return nil, ErrMessageNotFound
 		}
 		parameters.Cursor = history.ResponseMetaData.NextCursor
 	}
