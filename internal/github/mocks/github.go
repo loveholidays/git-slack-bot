@@ -21,6 +21,7 @@ import (
 type MockClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockClientMockRecorder
+	isgomock struct{}
 }
 
 // MockClientMockRecorder is the mock recorder for MockClient.
@@ -41,54 +42,55 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // GetOrg mocks base method.
-func (m *MockClient) GetOrg(arg0 context.Context, arg1 string) (*github.Organization, error) {
+func (m *MockClient) GetOrg(ctx context.Context, orgName string) (*github.Organization, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOrg", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetOrg", ctx, orgName)
 	ret0, _ := ret[0].(*github.Organization)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetOrg indicates an expected call of GetOrg.
-func (mr *MockClientMockRecorder) GetOrg(arg0, arg1 any) *gomock.Call {
+func (mr *MockClientMockRecorder) GetOrg(ctx, orgName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrg", reflect.TypeOf((*MockClient)(nil).GetOrg), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrg", reflect.TypeOf((*MockClient)(nil).GetOrg), ctx, orgName)
 }
 
 // ListTeamMembers mocks base method.
-func (m *MockClient) ListTeamMembers(arg0 context.Context, arg1, arg2 int64, arg3 *github.TeamListTeamMembersOptions) ([]*github.User, error) {
+func (m *MockClient) ListTeamMembers(ctx context.Context, team, orgID int64, opt *github.TeamListTeamMembersOptions) ([]*github.User, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListTeamMembers", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "ListTeamMembers", ctx, team, orgID, opt)
 	ret0, _ := ret[0].([]*github.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListTeamMembers indicates an expected call of ListTeamMembers.
-func (mr *MockClientMockRecorder) ListTeamMembers(arg0, arg1, arg2, arg3 any) *gomock.Call {
+func (mr *MockClientMockRecorder) ListTeamMembers(ctx, team, orgID, opt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTeamMembers", reflect.TypeOf((*MockClient)(nil).ListTeamMembers), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTeamMembers", reflect.TypeOf((*MockClient)(nil).ListTeamMembers), ctx, team, orgID, opt)
 }
 
 // ListTeams mocks base method.
-func (m *MockClient) ListTeams(arg0 context.Context, arg1 string, arg2 *github.ListOptions) ([]*github.Team, error) {
+func (m *MockClient) ListTeams(ctx context.Context, org string, options *github.ListOptions) ([]*github.Team, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListTeams", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "ListTeams", ctx, org, options)
 	ret0, _ := ret[0].([]*github.Team)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListTeams indicates an expected call of ListTeams.
-func (mr *MockClientMockRecorder) ListTeams(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockClientMockRecorder) ListTeams(ctx, org, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTeams", reflect.TypeOf((*MockClient)(nil).ListTeams), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTeams", reflect.TypeOf((*MockClient)(nil).ListTeams), ctx, org, options)
 }
 
 // MockInteractor is a mock of Interactor interface.
 type MockInteractor struct {
 	ctrl     *gomock.Controller
 	recorder *MockInteractorMockRecorder
+	isgomock struct{}
 }
 
 // MockInteractorMockRecorder is the mock recorder for MockInteractor.
@@ -106,6 +108,21 @@ func NewMockInteractor(ctrl *gomock.Controller) *MockInteractor {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockInteractor) EXPECT() *MockInteractorMockRecorder {
 	return m.recorder
+}
+
+// GetStack mocks base method.
+func (m *MockInteractor) GetStack(owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStack", owner, repo, stackNumber)
+	ret0, _ := ret[0].(*github.PullRequestStackDetails)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetStack indicates an expected call of GetStack.
+func (mr *MockInteractorMockRecorder) GetStack(owner, repo, stackNumber any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStack", reflect.TypeOf((*MockInteractor)(nil).GetStack), owner, repo, stackNumber)
 }
 
 // GetTeamMembers mocks base method.

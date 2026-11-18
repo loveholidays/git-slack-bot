@@ -35,7 +35,7 @@ type Notification struct {
 	CreatedAt time.Time
 }
 
-var errMessageNotFound = errors.New("could not find message")
+var ErrMessageNotFound = errors.New("could not find message")
 
 func (sc *Connector) SendMessageOnce(notification Notification) {
 	sc.notificationMutex.Lock()
@@ -45,12 +45,15 @@ func (sc *Connector) SendMessageOnce(notification Notification) {
 	if err == nil {
 		return
 	}
-	if !errors.Is(err, errMessageNotFound) {
+	if !errors.Is(err, ErrMessageNotFound) {
 		slog.Error("Could not check for an existing notification", slog.Any("error", err))
 		return
 	}
 	sc.SendMessage(notification.Text)
 }
+
+// SendOrUpdateMessage is implemented in the stack client operations follow-up.
+func (sc *Connector) SendOrUpdateMessage(Notification) {}
 
 func (sc *Connector) findNotification(notification Notification) (*slack.Message, error) {
 	parameters := &slack.GetConversationHistoryParameters{ChannelID: sc.channelID}
@@ -66,7 +69,7 @@ func (sc *Connector) findNotification(notification Notification) (*slack.Message
 			return message, nil
 		}
 		if history.ResponseMetaData.NextCursor == "" {
-			return nil, errMessageNotFound
+			return nil, ErrMessageNotFound
 		}
 		parameters.Cursor = history.ResponseMetaData.NextCursor
 	}

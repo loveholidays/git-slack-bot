@@ -72,6 +72,7 @@ func (c *ExternalClient) GetOrg(ctx context.Context, orgName string) (*github.Or
 
 type Interactor interface {
 	GetTeamMembers() []string
+	GetStack(owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error)
 }
 
 type Connector struct {
@@ -133,4 +134,9 @@ func (ghc *Connector) GetTeamMembers() []string {
 	}
 
 	return users
+}
+
+// GetStack is implemented in the stack client operations follow-up.
+func (ghc *Connector) GetStack(string, string, int) (*github.PullRequestStackDetails, error) {
+	return nil, nil
 }

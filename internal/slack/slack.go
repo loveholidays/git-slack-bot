@@ -42,6 +42,7 @@ type Interactor interface {
 	ConversationID() string
 	DirectMessage(userID string) (Interactor, error)
 	SendMessageOnce(notification Notification)
+	SendOrUpdateMessage(notification Notification)
 	SendReply(slackMessage *slack.Message, message string)
 	AddReactionToMessage(reaction string, message *slack.Message)
 	RemoveReactionFromMessage(reaction string, message *slack.Message)
