@@ -5,6 +5,7 @@ import (
 	"git-slack-bot/internal/config"
 	"git-slack-bot/internal/github"
 	"git-slack-bot/internal/handler"
+	"git-slack-bot/internal/messagebuilder"
 	"git-slack-bot/internal/slack"
 	"git-slack-bot/internal/user"
 	"log/slog"
@@ -56,7 +57,10 @@ func main() {
 	if emojiConfiguration.Close == "" {
 		emojiConfiguration.Close = "x"
 	}
-	notifier := handler.NewSinglePRNotifier(userService, emojiConfiguration)
+	singlePRNotifier := handler.NewSinglePRNotifier(userService, emojiConfiguration)
+	stackMessageBuilder := &messagebuilder.MessageBuilder{}
+	stackedPRNotifier := handler.NewStackedPRNotifier(gitHubConnector, stackMessageBuilder, userService, emojiConfiguration)
+	notifier := handler.NewSelectingPRNotifier(singlePRNotifier, stackedPRNotifier, gitHubConnector)
 	gitHandler := handler.NewGitHandler(slackConnector, userService, notifier, *cfg)
 	webhookEventHandler := handler.NewWebhookEventHandler([]byte(cfg.GitHub.SecretKey), gitHandler)
 	http.HandleFunc("/git-event", webhookEventHandler.HandleWebhook)
