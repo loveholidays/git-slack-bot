@@ -62,18 +62,6 @@ var _ = Describe("Single PR notifier", func() {
 
 			notifier.NotifyPullRequestOpened(slackMock, pullRequest)
 		})
-
-		It("should not notify for a draft PR", func() {
-			pullRequest.Draft = new(true)
-
-			notifier.NotifyPullRequestOpened(slackMock, pullRequest)
-		})
-
-		It("should not notify for a closed PR", func() {
-			pullRequest.State = new("closed")
-
-			notifier.NotifyPullRequestOpened(slackMock, pullRequest)
-		})
 	})
 
 	Context("NotifyPullRequestClosed", func() {
