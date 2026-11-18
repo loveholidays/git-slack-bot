@@ -24,6 +24,7 @@ import (
 	"git-slack-bot/internal/config"
 	gh "github.com/google/go-github/v93/github"
 	sl "github.com/slack-go/slack"
+	"strings"
 )
 
 type MessageBuilder struct{}
@@ -31,6 +32,72 @@ type MessageBuilder struct{}
 func (m *MessageBuilder) BuildPRMessage(userDescriptor string, pullRequest *gh.PullRequest) string {
 	return fmt.Sprintf("%s %s:\n%s", userDescriptor, *pullRequest.Title, *pullRequest.HTMLURL)
 }
+func (m *MessageBuilder) BuildPRStackMessage(stack gh.PullRequestStackDetails, previousText string, emoji config.EmojiConfiguration) string {
+	lines := []string{fmt.Sprintf("PR Stack %d:", stack.ID)}
+	titleEscaper := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\n", " ", "\r", " ")
+	for _, pullRequest := range stack.PullRequests {
+		if pullRequest.Draft {
+			continue
+		}
+		title := titleEscaper.Replace(pullRequest.Title)
+		previousLine := stackPullRequestLine(previousText, pullRequest.HTMLURL)
+		approved := strings.HasSuffix(previousLine, " :"+strings.Trim(emoji.Approve, ":")+":")
+		status := pullRequestStatus(pullRequest.State, pullRequest.MergedAt != nil, approved, emoji)
+		lines = append(lines, fmt.Sprintf("- <%s|%s>%s", pullRequest.HTMLURL, title, status))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (m *MessageBuilder) BuildPRStackStatusMessage(message *sl.Message, pullRequest gh.PullRequest, approved bool, emoji config.EmojiConfiguration) string {
+	lines := strings.Split(message.Text, "\n")
+	linkPrefix := "<" + pullRequest.GetHTMLURL() + "|"
+	status := pullRequestStatus(pullRequest.GetState(), pullRequest.MergedAt != nil, approved, emoji)
+	for i, line := range lines {
+		if !strings.Contains(line, linkPrefix) {
+			continue
+		}
+		linkEnd := strings.LastIndex(line, ">")
+		if linkEnd >= 0 {
+			lines[i] = line[:linkEnd+1] + status
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (m *MessageBuilder) BuildPRStackReviewMessage(userDescriptor string, pullRequest gh.PullRequest, review gh.PullRequestReview) string {
+	state := strings.ReplaceAll(strings.ToLower(review.GetState()), "_", " ")
+	message := fmt.Sprintf("%s left a <%s|%s review> for <%s|PR #%d>.", userDescriptor, review.GetHTMLURL(), state, pullRequest.GetHTMLURL(), pullRequest.GetNumber())
+	if review.GetBody() != "" {
+		message += "\n" + review.GetBody()
+	}
+	return message
+}
+
+func pullRequestStatus(state string, merged, approved bool, emoji config.EmojiConfiguration) string {
+	name := ""
+	switch {
+	case state == "closed" && !merged:
+		name = emoji.Close
+	case merged:
+		name = emoji.Merge
+	case approved:
+		name = emoji.Approve
+	}
+	if name == "" {
+		return ""
+	}
+	return " :" + strings.Trim(name, ":") + ":"
+}
+
+func stackPullRequestLine(text, url string) string {
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(line, "- <"+url+"|") {
+			return line
+		}
+	}
+	return ""
+}
+
 func (m *MessageBuilder) BuildPRCommentMessage(userDescriptor string, event gh.PullRequestReviewCommentEvent) string {
 	return fmt.Sprintf("%s left a <%s|comment>:\n> @L%v %s\n%s", userDescriptor, event.Comment.GetHTMLURL(), event.Comment.GetLine(), event.GetComment().GetPath(), event.Comment.GetBody())
 }
@@ -41,17 +108,4 @@ func (m *MessageBuilder) BuildPRReviewMessage(userDescriptor string, review *gh.
 
 func (m *MessageBuilder) BuildIssueCommentMessage(userDescriptor string, event gh.IssueCommentEvent) string {
 	return fmt.Sprintf("%s left a <%s|comment>:\n%s", userDescriptor, event.Comment.GetHTMLURL(), event.Comment.GetBody())
-}
-
-// Stack message formatting is implemented in the rendering follow-up.
-func (m *MessageBuilder) BuildPRStackMessage(gh.PullRequestStackDetails, string, config.EmojiConfiguration) string {
-	return ""
-}
-
-func (m *MessageBuilder) BuildPRStackStatusMessage(*sl.Message, gh.PullRequest, bool, config.EmojiConfiguration) string {
-	return ""
-}
-
-func (m *MessageBuilder) BuildPRStackReviewMessage(string, gh.PullRequest, gh.PullRequestReview) string {
-	return ""
 }
