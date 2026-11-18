@@ -22,7 +22,7 @@ package messagebuilder
 import (
 	_ "embed"
 	"encoding/json"
-	gh "github.com/google/go-github/v56/github"
+	gh "github.com/google/go-github/v93/github"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"testing"
@@ -77,8 +77,8 @@ Wow comments work too now?`
 	It("should build a PR review message", func() {
 		messageBuilder := MessageBuilder{}
 		review := &gh.PullRequestReview{
-			HTMLURL: gh.String("https://github.test/example-org/example-repo/pull/42#pullrequestreview-1001"),
-			Body:    gh.String("Please update this before merging."),
+			HTMLURL: new("https://github.test/example-org/example-repo/pull/42#pullrequestreview-1001"),
+			Body:    new("Please update this before merging."),
 		}
 
 		actual := messageBuilder.BuildPRReviewMessage("@Reviewer", review)

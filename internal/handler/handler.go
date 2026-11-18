@@ -23,7 +23,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	gh "github.com/google/go-github/v56/github"
+	gh "github.com/google/go-github/v93/github"
 )
 
 type GithubPullRequestAction string

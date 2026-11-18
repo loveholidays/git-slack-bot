@@ -27,7 +27,7 @@ import (
 	mock_github "git-slack-bot/internal/github/mocks"
 	"testing"
 
-	gh "github.com/google/go-github/v56/github"
+	gh "github.com/google/go-github/v93/github"
 	"go.uber.org/mock/gomock"
 
 	. "github.com/onsi/ginkgo/v2"

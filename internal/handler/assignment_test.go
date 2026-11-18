@@ -31,7 +31,7 @@ import (
 	"testing"
 	"time"
 
-	gh "github.com/google/go-github/v56/github"
+	gh "github.com/google/go-github/v93/github"
 	"go.uber.org/mock/gomock"
 )
 
@@ -75,13 +75,13 @@ func TestAssigneeNotifications(t *testing.T) {
 			userService := user.NewService(slackMock, []string{"member", "another-member"}, nil, nil, nil)
 			gitHandler := handler.NewGitHandler(slackMock, userService, notifierMock, config.Configuration{GitHub: config.GitHubConfiguration{NotifyAssignedFluxPRs: !testCase.disabled}})
 			pullRequest := assignmentPullRequest(testCase.author, testCase.assignees)
-			pullRequest.Draft = gh.Bool(testCase.draft)
-			pullRequest.State = gh.String(testCase.state)
+			pullRequest.Draft = new(testCase.draft)
+			pullRequest.State = new(testCase.state)
 			event := gh.PullRequestEvent{
-				Action:      gh.String(testCase.action),
+				Action:      new(testCase.action),
 				Repo:        assignmentRepository(testCase.repository),
 				PullRequest: pullRequest,
-				Assignee:    &gh.User{Login: gh.String(testCase.assignedUser)},
+				Assignee:    &gh.User{Login: new(testCase.assignedUser)},
 			}
 			if testCase.wantNotification {
 				notifierMock.EXPECT().NotifyPullRequestOpened(slackMock, pullRequest)
@@ -100,39 +100,39 @@ func TestFluxAssigneeReactionsAndThreads(t *testing.T) {
 			t.Helper()
 			pullRequest.MergedAt = pullRequest.CreatedAt
 			notifierMock.EXPECT().NotifyPullRequestClosed(slackMock, pullRequest)
-			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("closed"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest}))
+			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: new("closed"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest}))
 		}},
 		{name: "closed", run: func(t *testing.T, gitHandler *handler.GitHandler, notifierMock *mock_handler.MockPullRequestNotifier, slackMock *mock_slack.MockInteractor, pullRequest *gh.PullRequest) {
 			t.Helper()
 			notifierMock.EXPECT().NotifyPullRequestClosed(slackMock, pullRequest)
-			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("closed"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest}))
+			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: new("closed"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest}))
 		}},
 		{name: "reopened", run: func(t *testing.T, gitHandler *handler.GitHandler, notifierMock *mock_handler.MockPullRequestNotifier, slackMock *mock_slack.MockInteractor, pullRequest *gh.PullRequest) {
 			t.Helper()
 			notifierMock.EXPECT().NotifyPullRequestReopened(slackMock, pullRequest)
-			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("reopened"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest}))
+			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: new("reopened"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest}))
 		}},
 		{name: "approved with review body", run: func(t *testing.T, gitHandler *handler.GitHandler, notifierMock *mock_handler.MockPullRequestNotifier, slackMock *mock_slack.MockInteractor, pullRequest *gh.PullRequest) {
 			t.Helper()
 			review := &gh.PullRequestReview{State: new("approved"), Body: new("Looks good"), HTMLURL: new("https://github.com/review"), User: &gh.User{Login: new("reviewer")}}
 			notifierMock.EXPECT().NotifyReviewSubmitted(slackMock, pullRequest, review)
-			gitHandler.HandlePullRequestReviewEvent(assignmentJSON(t, gh.PullRequestReviewEvent{Action: gh.String("submitted"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest, Review: review}))
+			gitHandler.HandlePullRequestReviewEvent(assignmentJSON(t, gh.PullRequestReviewEvent{Action: new("submitted"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest, Review: review}))
 		}},
 		{name: "approval dismissed", run: func(t *testing.T, gitHandler *handler.GitHandler, notifierMock *mock_handler.MockPullRequestNotifier, slackMock *mock_slack.MockInteractor, pullRequest *gh.PullRequest) {
 			t.Helper()
 			notifierMock.EXPECT().NotifyReviewDismissed(slackMock, pullRequest)
-			gitHandler.HandlePullRequestReviewEvent(assignmentJSON(t, gh.PullRequestReviewEvent{Action: gh.String("dismissed"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest, Review: &gh.PullRequestReview{User: &gh.User{Login: gh.String("reviewer")}}}))
+			gitHandler.HandlePullRequestReviewEvent(assignmentJSON(t, gh.PullRequestReviewEvent{Action: new("dismissed"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest, Review: &gh.PullRequestReview{User: &gh.User{Login: new("reviewer")}}}))
 		}},
 		{name: "review comment", run: func(t *testing.T, gitHandler *handler.GitHandler, notifierMock *mock_handler.MockPullRequestNotifier, slackMock *mock_slack.MockInteractor, pullRequest *gh.PullRequest) {
 			t.Helper()
 			notifierMock.EXPECT().NotifyComment(slackMock, pullRequest, gomock.Any())
-			gitHandler.HandlePullRequestReviewCommentEvent(assignmentJSON(t, gh.PullRequestReviewCommentEvent{Action: gh.String("created"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest, Comment: &gh.PullRequestComment{User: &gh.User{Login: gh.String("reviewer")}}}))
+			gitHandler.HandlePullRequestReviewCommentEvent(assignmentJSON(t, gh.PullRequestReviewCommentEvent{Action: new("created"), Repo: assignmentRepository("loveholidays/flux"), PullRequest: pullRequest, Comment: &gh.PullRequestComment{User: &gh.User{Login: new("reviewer")}}}))
 		}},
 		{name: "top level comment", run: func(t *testing.T, gitHandler *handler.GitHandler, notifierMock *mock_handler.MockPullRequestNotifier, slackMock *mock_slack.MockInteractor, pullRequest *gh.PullRequest) {
 			t.Helper()
 			expectedPullRequest := &gh.PullRequest{User: pullRequest.User, Assignees: pullRequest.Assignees, HTMLURL: pullRequest.HTMLURL}
 			notifierMock.EXPECT().NotifyComment(slackMock, expectedPullRequest, gomock.Any())
-			gitHandler.HandleIssueCommentEvent(assignmentJSON(t, gh.IssueCommentEvent{Action: gh.String("created"), Repo: assignmentRepository("loveholidays/flux"), Issue: &gh.Issue{User: pullRequest.User, Assignees: pullRequest.Assignees, HTMLURL: pullRequest.HTMLURL}, Comment: &gh.IssueComment{User: &gh.User{Login: gh.String("reviewer")}}}))
+			gitHandler.HandleIssueCommentEvent(assignmentJSON(t, gh.IssueCommentEvent{Action: new("created"), Repo: assignmentRepository("loveholidays/flux"), Issue: &gh.Issue{User: pullRequest.User, Assignees: pullRequest.Assignees, HTMLURL: pullRequest.HTMLURL}, Comment: &gh.IssueComment{User: &gh.User{Login: new("reviewer")}}}))
 		}},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -148,19 +148,19 @@ func TestFluxAssigneeReactionsAndThreads(t *testing.T) {
 
 func assignmentPullRequest(author string, assignees []string) *gh.PullRequest {
 	pullRequest := &gh.PullRequest{
-		User:      &gh.User{Login: gh.String(author)},
-		Title:     gh.String("Update deployment"),
-		HTMLURL:   gh.String("https://github.com/loveholidays/flux/pull/42"),
+		User:      &gh.User{Login: new(author)},
+		Title:     new("Update deployment"),
+		HTMLURL:   new("https://github.com/loveholidays/flux/pull/42"),
 		CreatedAt: &gh.Timestamp{Time: time.Date(2026, time.October, 21, 12, 0, 0, 0, time.UTC)},
 	}
 	for _, assignee := range assignees {
-		pullRequest.Assignees = append(pullRequest.Assignees, &gh.User{Login: gh.String(assignee)})
+		pullRequest.Assignees = append(pullRequest.Assignees, &gh.User{Login: new(assignee)})
 	}
 	return pullRequest
 }
 
 func assignmentRepository(fullName string) *gh.Repository {
-	return &gh.Repository{FullName: gh.String(fullName), Name: gh.String(strings.Split(fullName, "/")[1])}
+	return &gh.Repository{FullName: new(fullName), Name: new(strings.Split(fullName, "/")[1])}
 }
 
 func assignmentJSON(t *testing.T, event any) []byte {
@@ -191,10 +191,10 @@ func TestDisabledFluxAssignmentTracking(t *testing.T) {
 	gitHandler := handler.NewGitHandler(slackMock, userService, notifierMock, config.Configuration{GitHub: config.GitHubConfiguration{}})
 	pullRequest := assignmentPullRequest("external", []string{"member"})
 	repository := assignmentRepository("loveholidays/flux")
-	gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("closed"), Repo: repository, PullRequest: pullRequest}))
-	gitHandler.HandlePullRequestReviewEvent(assignmentJSON(t, gh.PullRequestReviewEvent{Action: gh.String("submitted"), Repo: repository, PullRequest: pullRequest, Review: &gh.PullRequestReview{State: gh.String("approved"), User: &gh.User{Login: gh.String("reviewer")}}}))
-	gitHandler.HandlePullRequestReviewCommentEvent(assignmentJSON(t, gh.PullRequestReviewCommentEvent{Action: gh.String("created"), Repo: repository, PullRequest: pullRequest, Comment: &gh.PullRequestComment{User: &gh.User{Login: gh.String("reviewer")}}}))
-	gitHandler.HandleIssueCommentEvent(assignmentJSON(t, gh.IssueCommentEvent{Action: gh.String("created"), Repo: repository, Issue: &gh.Issue{User: pullRequest.User, Assignees: pullRequest.Assignees, HTMLURL: pullRequest.HTMLURL}, Comment: &gh.IssueComment{User: &gh.User{Login: gh.String("reviewer")}}}))
+	gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: new("closed"), Repo: repository, PullRequest: pullRequest}))
+	gitHandler.HandlePullRequestReviewEvent(assignmentJSON(t, gh.PullRequestReviewEvent{Action: new("submitted"), Repo: repository, PullRequest: pullRequest, Review: &gh.PullRequestReview{State: new("approved"), User: &gh.User{Login: new("reviewer")}}}))
+	gitHandler.HandlePullRequestReviewCommentEvent(assignmentJSON(t, gh.PullRequestReviewCommentEvent{Action: new("created"), Repo: repository, PullRequest: pullRequest, Comment: &gh.PullRequestComment{User: &gh.User{Login: new("reviewer")}}}))
+	gitHandler.HandleIssueCommentEvent(assignmentJSON(t, gh.IssueCommentEvent{Action: new("created"), Repo: repository, Issue: &gh.Issue{User: pullRequest.User, Assignees: pullRequest.Assignees, HTMLURL: pullRequest.HTMLURL}, Comment: &gh.IssueComment{User: &gh.User{Login: new("reviewer")}}}))
 }
 
 func authorChannelRule() config.NotificationRule {
@@ -238,7 +238,7 @@ func TestNotificationRules(t *testing.T) {
 			for _, id := range testCase.destinations {
 				notifierMock.EXPECT().NotifyPullRequestOpened(destinations[id], pullRequest)
 			}
-			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("opened"), Repo: assignmentRepository("example/deployments"), PullRequest: pullRequest}))
+			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: new("opened"), Repo: assignmentRepository("example/deployments"), PullRequest: pullRequest}))
 		})
 	}
 }
@@ -299,7 +299,7 @@ func TestConfiguredRepositoryDirectMessageFailuresDoNotPostToChannel(t *testing.
 			}
 			users := user.NewService(slackMock, []string{"member"}, mappings, nil, nil)
 			gitHandler := handler.NewGitHandler(slackMock, users, notifierMock, config.Configuration{Notifications: []config.NotificationRule{assigneeDMRule()}})
-			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: gh.String("opened"), Repo: assignmentRepository("example/deployments"), PullRequest: assignmentPullRequest("external", []string{"member"})}))
+			gitHandler.HandlePullRequestEvent(assignmentJSON(t, gh.PullRequestEvent{Action: new("opened"), Repo: assignmentRepository("example/deployments"), PullRequest: assignmentPullRequest("external", []string{"member"})}))
 		})
 	}
 }
