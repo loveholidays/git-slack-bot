@@ -26,6 +26,7 @@ import (
 	"errors"
 	"git-slack-bot/internal/config"
 	"log/slog"
+	"slices"
 
 	"github.com/google/go-github/v93/github"
 	"golang.org/x/oauth2"
@@ -35,6 +36,7 @@ type Client interface {
 	ListTeams(ctx context.Context, org string, options *github.ListOptions) ([]*github.Team, error)
 	ListTeamMembers(ctx context.Context, team, orgID int64, opt *github.TeamListTeamMembersOptions) ([]*github.User, error)
 	GetOrg(ctx context.Context, orgName string) (*github.Organization, error)
+	GetStack(ctx context.Context, owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error)
 }
 
 type ExternalClient struct {
@@ -70,6 +72,11 @@ func (c *ExternalClient) GetOrg(ctx context.Context, orgName string) (*github.Or
 	return org, err
 }
 
+func (c *ExternalClient) GetStack(ctx context.Context, owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error) {
+	stack, _, err := c.client.PullRequests.GetStack(ctx, owner, repo, stackNumber)
+	return stack, err
+}
+
 type Interactor interface {
 	GetTeamMembers() []string
 	GetStack(owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error)
@@ -82,6 +89,20 @@ type Connector struct {
 	orgID         int64
 	teamID        int64
 	userBlackList []string
+}
+
+func (ghc *Connector) GetStack(owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error) {
+	stack, err := ghc.client.GetStack(ghc.ctx, owner, repo, stackNumber)
+	if err != nil {
+		return nil, err
+	}
+	if stack == nil {
+		return nil, nil
+	}
+	if len(stack.PullRequests) == 0 || slices.Contains(stack.PullRequests, nil) {
+		return nil, nil
+	}
+	return stack, nil
 }
 
 func NewGitHubConnector(ctx context.Context, cfg config.GitHubConfiguration, client Client) (*Connector, error) {
@@ -134,8 +155,4 @@ func (ghc *Connector) GetTeamMembers() []string {
 	}
 
 	return users
-}
-
-func (ghc *Connector) GetStack(string, string, int) (*github.PullRequestStackDetails, error) {
-	return nil, nil
 }
