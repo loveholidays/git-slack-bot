@@ -21,7 +21,9 @@ package messagebuilder
 
 import (
 	"fmt"
+	"git-slack-bot/internal/config"
 	gh "github.com/google/go-github/v93/github"
+	sl "github.com/slack-go/slack"
 )
 
 type MessageBuilder struct{}
@@ -39,4 +41,16 @@ func (m *MessageBuilder) BuildPRReviewMessage(userDescriptor string, review *gh.
 
 func (m *MessageBuilder) BuildIssueCommentMessage(userDescriptor string, event gh.IssueCommentEvent) string {
 	return fmt.Sprintf("%s left a <%s|comment>:\n%s", userDescriptor, event.Comment.GetHTMLURL(), event.Comment.GetBody())
+}
+
+func (m *MessageBuilder) BuildPRStackMessage(gh.PullRequestStackDetails, string, config.EmojiConfiguration) string {
+	return ""
+}
+
+func (m *MessageBuilder) BuildPRStackStatusMessage(*sl.Message, gh.PullRequest, bool, config.EmojiConfiguration) string {
+	return ""
+}
+
+func (m *MessageBuilder) BuildPRStackReviewMessage(string, gh.PullRequest, gh.PullRequestReview) string {
+	return ""
 }
