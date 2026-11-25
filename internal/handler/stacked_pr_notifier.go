@@ -118,8 +118,10 @@ func (n *stackedPRNotifier) NotifyReviewSubmitted(connector slack.Interactor, pu
 	if review.GetState() == approved {
 		n.updateStackMessage(connector, message, pullRequest, true)
 	}
-	reply := n.messageBuilder.BuildPRStackReviewMessage(n.userService.GetUserDescriptor(review.GetUser().GetLogin()), *pullRequest, *review)
-	connector.SendReply(message, reply)
+	if review.GetBody() != "" {
+		reply := n.messageBuilder.BuildPRStackReviewMessage(n.userService.GetUserDescriptor(review.GetUser().GetLogin()), *pullRequest, *review)
+		connector.SendReply(message, reply)
+	}
 }
 
 func (n *stackedPRNotifier) NotifyReviewDismissed(connector slack.Interactor, pullRequest *gh.PullRequest) {
@@ -128,8 +130,6 @@ func (n *stackedPRNotifier) NotifyReviewDismissed(connector slack.Interactor, pu
 		return
 	}
 	n.updateStackMessage(connector, message, pullRequest, false)
-	reply := fmt.Sprintf("Review dismissed for <%s|PR #%d>.", pullRequest.GetHTMLURL(), pullRequest.GetNumber())
-	connector.SendReply(message, reply)
 }
 
 func (n *stackedPRNotifier) NotifyComment(connector slack.Interactor, pullRequest *gh.PullRequest, comment string) {
