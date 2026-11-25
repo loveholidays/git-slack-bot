@@ -56,6 +56,21 @@ func (mr *MockClientMockRecorder) GetOrg(ctx, orgName any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrg", reflect.TypeOf((*MockClient)(nil).GetOrg), ctx, orgName)
 }
 
+// GetStack mocks base method.
+func (m *MockClient) GetStack(ctx context.Context, owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStack", ctx, owner, repo, stackNumber)
+	ret0, _ := ret[0].(*github.PullRequestStackDetails)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetStack indicates an expected call of GetStack.
+func (mr *MockClientMockRecorder) GetStack(ctx, owner, repo, stackNumber any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStack", reflect.TypeOf((*MockClient)(nil).GetStack), ctx, owner, repo, stackNumber)
+}
+
 // ListTeamMembers mocks base method.
 func (m *MockClient) ListTeamMembers(ctx context.Context, team, orgID int64, opt *github.TeamListTeamMembersOptions) ([]*github.User, error) {
 	m.ctrl.T.Helper()

@@ -137,7 +137,7 @@ var _ = Describe("NewConnector", func() {
 	})
 })
 
-var _ = Describe("GetTeamMembers", func() {
+var _ = Describe("GitHub connector queries", func() {
 	var (
 		mockCtrl   *gomock.Controller
 		mockClient *mock_github.MockClient
@@ -172,6 +172,32 @@ var _ = Describe("GetTeamMembers", func() {
 		Expect(err).To(BeNil())
 		connector = conn
 
+	})
+
+	It("should return stack members in API order", func() {
+		expected := &gh.PullRequestStackDetails{
+			ID: 123, Number: 7,
+			PullRequests: []*gh.PullRequestStackEntry{
+				{Number: 50, HTMLURL: "https://github.com/loveholidays/flux/pull/50"},
+				{Number: 42, HTMLURL: "https://github.com/loveholidays/flux/pull/42"},
+			},
+		}
+		mockClient.EXPECT().GetStack(gomock.Any(), "loveholidays", "flux", 7).Return(expected, nil)
+
+		stack, err := connector.GetStack("loveholidays", "flux", 7)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stack).To(Equal(expected))
+	})
+
+	It("should return the error when stack retrieval fails", func() {
+		expectedError := errors.New("stack unavailable")
+		mockClient.EXPECT().GetStack(gomock.Any(), "loveholidays", "flux", 7).Return(nil, expectedError)
+
+		stack, err := connector.GetStack("loveholidays", "flux", 7)
+
+		Expect(stack).To(BeNil())
+		Expect(err).To(MatchError(expectedError))
 	})
 
 	It("should not return nil if failed to get team members", func() {
