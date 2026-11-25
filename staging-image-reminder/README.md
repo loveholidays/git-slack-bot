@@ -10,6 +10,10 @@ query and inventory check. It also supplies the report heading. `SLACK_CHANNEL_I
 selects the destination channel; neither the team nor the channel has a default.
 The reminder's own image is excluded independently of the CronJob/container name,
 alongside the listed infrastructure sidecars.
+The `packages/full-preload-all` app's `full-preload-all` container is also excluded
+when it uses exactly `marketplace.gcr.io/google/rockylinux9:latest`, the utility
+image configured in Flux. Other images for that job and other workloads using
+Rocky Linux are still reported.
 
 Other teams can use the existing [Flux CronJob values](https://github.com/loveholidays/flux/blob/e498de9061cff2f126fcd10e0437d0f4469fd2dc/overlays/staging-eu/packages/shopping-staging-image-reminder/values.yaml)
 and [Kustomization](https://github.com/loveholidays/flux/blob/e498de9061cff2f126fcd10e0437d0f4469fd2dc/overlays/staging-eu/packages/shopping-staging-image-reminder/kustomization.yaml)

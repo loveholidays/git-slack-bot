@@ -167,6 +167,10 @@ def main():
         raise ValueError('TEAM must not be empty')
     team_label = json.dumps(team, ensure_ascii=False)
     results = query(QUERY % team_label)
+    # This utility CronJob uses the Marketplace image configured in Flux, not an application build.
+    results = [row for row in results if tuple(row['metric'][key] for key in
+               ('namespace', 'label_app', 'container', 'image_spec')) !=
+               ('packages', 'full-preload-all', 'full-preload-all', 'marketplace.gcr.io/google/rockylinux9:latest')]
     if not results:
         # Empty results are safe only when both inventory metrics are available.
         inventory = query('count(kube_pod_container_info{image_spec!=""}) > 0 and on() count(kube_pod_labels{label_team=%s}) > 0' % team_label)
