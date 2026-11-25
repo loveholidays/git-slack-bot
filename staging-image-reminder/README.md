@@ -9,7 +9,7 @@ Set `TEAM`, `PROMETHEUS_URL`, `SLACK_CHANNEL_ID`, and `SLACK_TOKEN` in the CronJ
 query and inventory check. It also supplies the report heading. `SLACK_CHANNEL_ID`
 selects the destination channel; neither the team nor the channel has a default.
 The reminder's own image is excluded independently of the CronJob/container name,
-alongside the listed infrastructure sidecars.
+alongside the listed infrastructure sidecars and the curl-only `full-preload-all` trigger.
 
 Other teams can use the existing [Flux CronJob values](https://github.com/loveholidays/flux/blob/e498de9061cff2f126fcd10e0437d0f4469fd2dc/overlays/staging-eu/packages/shopping-staging-image-reminder/values.yaml)
 and [Kustomization](https://github.com/loveholidays/flux/blob/e498de9061cff2f126fcd10e0437d0f4469fd2dc/overlays/staging-eu/packages/shopping-staging-image-reminder/kustomization.yaml)
