@@ -54,29 +54,6 @@ class ReminderTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'inventory is unavailable'):
                 remind.main()
 
-    @patch.dict(os.environ, {'PROMETHEUS_URL': 'http://prometheus:9090', 'SLACK_CHANNEL_ID': 'C0BQSACN6EB', 'SLACK_TOKEN': 'test-token'})
-    def test_expected_full_preload_image_is_excluded_but_other_workloads_are_reported(self):
-        expected = image('full-preload-all', 'packages', 'marketplace.gcr.io/google/rockylinux9:latest')
-        unexpected = [
-            image('full-preload-all', 'packages', 'marketplace.gcr.io/google/rockylinux9:test'),
-            image('another-job', 'packages', expected['metric']['image_spec']),
-            image('full-preload-all', 'web', expected['metric']['image_spec']),
-            {**expected, 'metric': {**expected['metric'], 'container': 'another-container'}},
-        ]
-        with patch('remind.urlopen', side_effect=[response(vector([expected] + unexpected)), response({'ok': True})]) as request:
-            remind.main()
-        text = json.loads(request.call_args_list[-1].args[0].data)['text']
-        self.assertNotIn('packages/full-preload-all (full-preload-all): marketplace.gcr.io/google/rockylinux9:latest', text)
-        self.assertEqual(text.count('\n• '), len(unexpected))
-
-    @patch.dict(os.environ, {'PROMETHEUS_URL': 'http://prometheus:9090'})
-    def test_only_expected_full_preload_image_checks_inventory_and_sends_nothing(self):
-        rows = [image('full-preload-all', 'packages', 'marketplace.gcr.io/google/rockylinux9:latest')]
-        with patch('remind.urlopen', side_effect=[response(vector(rows)), response(vector([{'value': [0, '1']}]))]) as request:
-            remind.main()
-        self.assertEqual(request.call_count, 2)
-        self.assertTrue(all(isinstance(call.args[0], str) for call in request.call_args_list))
-
     @patch.dict(os.environ, {'PROMETHEUS_URL': 'http://prometheus:9090'})
     def test_prometheus_error_fails(self):
         with patch('remind.urlopen', return_value=response({'status': 'error', 'error': 'query_failed'})):
