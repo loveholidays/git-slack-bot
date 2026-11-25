@@ -21,14 +21,16 @@ package handler_test
 
 import (
 	_ "embed"
+	"encoding/json"
 	"git-slack-bot/internal/config"
 	"git-slack-bot/internal/handler"
-	bot_slack "git-slack-bot/internal/slack"
+	mock_handler "git-slack-bot/internal/handler/mocks"
 	mock_slack "git-slack-bot/internal/slack/mocks"
 	mock_user "git-slack-bot/internal/user/mocks"
 
+	gh "github.com/google/go-github/v56/github"
 	. "github.com/onsi/ginkgo/v2"
-	"github.com/slack-go/slack"
+	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
 )
 
@@ -57,6 +59,7 @@ var _ = Describe("HandleGitEvents", func() {
 	var (
 		mockCtrl            *gomock.Controller
 		slackMock           *mock_slack.MockInteractor
+		notifierMock        *mock_handler.MockPullRequestNotifier
 		userMock            *mock_user.MockService
 		githubConfiguration config.GitHubConfiguration
 	)
@@ -64,202 +67,126 @@ var _ = Describe("HandleGitEvents", func() {
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		slackMock = mock_slack.NewMockInteractor(mockCtrl)
+		notifierMock = mock_handler.NewMockPullRequestNotifier(mockCtrl)
 		userMock = mock_user.NewMockService(mockCtrl)
 		githubConfiguration = config.GitHubConfiguration{}
 	})
 
 	Context("HandlePullRequestEvents", func() {
 		It("should no-op if coming from a ignored repo", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"hotels-and-ancillaries"}}})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"hotels-and-ancillaries"}}})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
-			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
 			webHookHandler.HandlePullRequestEvent(prOpenedJSONData)
 		})
 
-		It("should post slack message when pull request opened", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+		It("should notify when pull request opened", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
+			expectedEvent := gh.PullRequestEvent{}
+			err := json.Unmarshal(prOpenedJSONData, &expectedEvent)
+			Expect(err).NotTo(HaveOccurred())
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
-			userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("<@123>")
+			notifierMock.EXPECT().NotifyPullRequestOpened(slackMock, expectedEvent.PullRequest)
 
-			expected := `<@123> [GS] Test slack id change:
-https://github.com/loveholidays/hotels-and-ancillaries/pull/808`
-
-			slackMock.EXPECT().SendMessageOnce(gomock.Cond[bot_slack.Notification](func(notification bot_slack.Notification) bool { return notification.Text == expected }))
 			webHookHandler.HandlePullRequestEvent(prOpenedJSONData)
 		})
 
-		It("should post slack message when pull request ready for review", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+		It("should notify when pull request ready for review", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
+			expectedEvent := gh.PullRequestEvent{}
+			err := json.Unmarshal(prReadyForReviewJSONData, &expectedEvent)
+			Expect(err).NotTo(HaveOccurred())
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
-			userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("<@123>")
+			notifierMock.EXPECT().NotifyPullRequestOpened(slackMock, expectedEvent.PullRequest)
 
-			expected := `<@123> Moving duplicating configmaps to base:
-https://github.com/loveholidays/flux/pull/92504`
-
-			slackMock.EXPECT().SendMessageOnce(gomock.Cond[bot_slack.Notification](func(notification bot_slack.Notification) bool { return notification.Text == expected }))
 			webHookHandler.HandlePullRequestEvent(prReadyForReviewJSONData)
 		})
 
-		It("should add merged emoji to message when pull request merged", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+		It("should notify when pull request merged", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
+			expectedEvent := gh.PullRequestEvent{}
+			err := json.Unmarshal(prMergedJSONData, &expectedEvent)
+			Expect(err).NotTo(HaveOccurred())
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
-			messageKey := &slack.Message{}
-			slackMock.EXPECT().GetMessage(gomock.Any()).Return(messageKey, nil)
+			notifierMock.EXPECT().NotifyPullRequestClosed(slackMock, expectedEvent.PullRequest)
 
-			slackMock.EXPECT().AddReactionToMessage("merged", messageKey)
 			webHookHandler.HandlePullRequestEvent(prMergedJSONData)
 		})
 
-		It("should add closed emoji when pull request closed", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+		It("should notify when pull request closed", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
+			expectedEvent := gh.PullRequestEvent{}
+			err := json.Unmarshal(prClosedJSONData, &expectedEvent)
+			Expect(err).NotTo(HaveOccurred())
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
-			messageKey := &slack.Message{}
-			slackMock.EXPECT().GetMessage(gomock.Any()).Return(messageKey, nil)
+			notifierMock.EXPECT().NotifyPullRequestClosed(slackMock, expectedEvent.PullRequest)
 
-			slackMock.EXPECT().AddReactionToMessage("x", messageKey)
 			webHookHandler.HandlePullRequestEvent(prClosedJSONData)
 		})
 
-		It("should remove closed emoji when pull request reopened", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+		It("should notify when pull request reopened", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
+			expectedEvent := gh.PullRequestEvent{}
+			err := json.Unmarshal(prReopenedJSONData, &expectedEvent)
+			Expect(err).NotTo(HaveOccurred())
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
-			messageKey := &slack.Message{}
-			slackMock.EXPECT().GetMessage(gomock.Any()).Return(messageKey, nil)
+			notifierMock.EXPECT().NotifyPullRequestReopened(slackMock, expectedEvent.PullRequest)
 
-			slackMock.EXPECT().RemoveReactionFromMessage("x", messageKey)
 			webHookHandler.HandlePullRequestEvent(prReopenedJSONData)
 		})
 	})
 
 	Context("HandlePullRequestReviewEvent", func() {
 		It("should no-op if coming from a ignored repo", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"frontier"}}})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"frontier"}}})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
-			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
 			webHookHandler.HandlePullRequestReviewEvent(prApprovedJSONData)
 		})
 
-		It("should add tick emoji when pull request approved", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+		It("should notify when a review is submitted", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
+			expectedEvent := gh.PullRequestReviewEvent{}
+			err := json.Unmarshal(prApprovedJSONData, &expectedEvent)
+			Expect(err).NotTo(HaveOccurred())
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(false)
-			messageKey := &slack.Message{}
-			slackMock.EXPECT().GetMessage(gomock.Any()).Return(messageKey, nil)
+			notifierMock.EXPECT().NotifyReviewSubmitted(slackMock, expectedEvent.PullRequest, expectedEvent.Review)
 
-			slackMock.EXPECT().AddReactionToMessage("+1", messageKey)
 			webHookHandler.HandlePullRequestReviewEvent(prApprovedJSONData)
 		})
 
-		It("should post review body to slack as a reply when pull request review has body", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
-			reviewBodyJSON := []byte(`{
-				"action": "submitted",
-				"review": {
-					"state": "changes_requested",
-					"body": "Please update this before merging.",
-					"html_url": "https://github.test/example-org/example-repo/pull/42#pullrequestreview-1001",
-					"user": {
-						"login": "reviewer-login"
-					}
-				},
-				"pull_request": {
-					"html_url": "https://github.test/example-org/example-repo/pull/42",
-					"user": {
-						"login": "author-login"
-					}
-				},
-				"repository": {
-					"name": "example-repo"
-				}
-			}`)
-
-			userMock.EXPECT().IsTeamMember("author-login").Return(true)
-			userMock.EXPECT().IsIgnoredReviewUser("reviewer-login").Return(false)
-			userMock.EXPECT().GetUserDescriptor("reviewer-login").Return("<@123>")
-			messageKey := &slack.Message{}
-			slackMock.EXPECT().GetMessage("<https://github.test/example-org/example-repo/pull/42>").Return(messageKey, nil)
-
-			expected := `<@123> left a <https://github.test/example-org/example-repo/pull/42#pullrequestreview-1001|review>:
-Please update this before merging.`
-
-			slackMock.EXPECT().SendReply(messageKey, expected)
-			slackMock.EXPECT().AddReactionToMessage(gomock.Any(), gomock.Any()).Times(0)
-			webHookHandler.HandlePullRequestReviewEvent(reviewBodyJSON)
-		})
-
-		It("should post approval review body and add tick emoji when approved review has body", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
-			approvedReviewBodyJSON := []byte(`{
-				"action": "submitted",
-				"review": {
-					"state": "approved",
-					"body": "Looks good overall.",
-					"html_url": "https://github.test/example-org/example-repo/pull/42#pullrequestreview-1002",
-					"user": {
-						"login": "reviewer-login"
-					}
-				},
-				"pull_request": {
-					"html_url": "https://github.test/example-org/example-repo/pull/42",
-					"user": {
-						"login": "author-login"
-					}
-				},
-				"repository": {
-					"name": "example-repo"
-				}
-			}`)
-
-			userMock.EXPECT().IsTeamMember("author-login").Return(true)
-			userMock.EXPECT().IsIgnoredReviewUser("reviewer-login").Return(false)
-			userMock.EXPECT().GetUserDescriptor("reviewer-login").Return("<@123>")
-			messageKey := &slack.Message{}
-			slackMock.EXPECT().GetMessage("<https://github.test/example-org/example-repo/pull/42>").Return(messageKey, nil)
-
-			expected := `<@123> left a <https://github.test/example-org/example-repo/pull/42#pullrequestreview-1002|review>:
-Looks good overall.`
-
-			slackMock.EXPECT().AddReactionToMessage("+1", messageKey)
-			slackMock.EXPECT().SendReply(messageKey, expected)
-			webHookHandler.HandlePullRequestReviewEvent(approvedReviewBodyJSON)
-		})
-
-		It("should not add tick emoji when pull request reviewer is ignored", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+		It("should not notify when pull request reviewer is ignored", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(true)
-			slackMock.EXPECT().GetMessage(gomock.Any()).Times(0)
-			slackMock.EXPECT().AddReactionToMessage(gomock.Any(), gomock.Any()).Times(0)
 
 			webHookHandler.HandlePullRequestReviewEvent(prApprovedJSONData)
 		})
 
-		It("should remove approve emoji when pull request review is dismissed", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+		It("should notify when a review is dismissed", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
+			expectedEvent := gh.PullRequestReviewEvent{}
+			err := json.Unmarshal(prReviewDismissedJSONData, &expectedEvent)
+			Expect(err).NotTo(HaveOccurred())
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(false)
-			messageKey := &slack.Message{}
-			slackMock.EXPECT().GetMessage(gomock.Any()).Return(messageKey, nil)
+			notifierMock.EXPECT().NotifyReviewDismissed(slackMock, expectedEvent.PullRequest)
 
-			slackMock.EXPECT().RemoveReactionFromMessage("+1", messageKey)
 			webHookHandler.HandlePullRequestReviewEvent(prReviewDismissedJSONData)
 		})
 
-		It("should not remove approve emoji when dismissed review is from ignored reviewer", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+		It("should not notify when dismissed review is from ignored reviewer", func() {
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsIgnoredReviewUser(gomock.Any()).Return(true)
-			slackMock.EXPECT().GetMessage(gomock.Any()).Times(0)
-			slackMock.EXPECT().RemoveReactionFromMessage(gomock.Any(), gomock.Any()).Times(0)
 
 			webHookHandler.HandlePullRequestReviewEvent(prReviewDismissedJSONData)
 		})
@@ -267,37 +194,35 @@ Looks good overall.`
 
 	Context("HandlePullRequestReviewCommentEvent", func() {
 		It("should no-op if coming from a ignored repo", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"yielding-ui"}}})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"yielding-ui"}}})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
-			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
 			webHookHandler.HandlePullRequestReviewCommentEvent(prCommentJSONData)
 		})
 
 		It("should post comment to slack as a reply when pull request commented on", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("<@123>")
 			userMock.EXPECT().IsIgnoredCommentUser("szmglh").Return(false)
-			messageKey := &slack.Message{}
-			slackMock.EXPECT().GetMessage(gomock.Any()).Return(messageKey, nil)
 
 			expected := `<@123> left a <https://github.com/loveholidays/yielding-ui/pull/61#discussion_r1425573584|comment>:
 > @L1 Dockerfile
 Sorry, that's not allowed since https://adrs.lvh.systems/adr/20231205-container-image-tagging/`
 
-			slackMock.EXPECT().SendReply(messageKey, expected)
+			expectedEvent := gh.PullRequestReviewCommentEvent{}
+			err := json.Unmarshal(prCommentJSONData, &expectedEvent)
+			Expect(err).NotTo(HaveOccurred())
+			expectedPullRequest := expectedEvent.PullRequest
+			notifierMock.EXPECT().NotifyComment(slackMock, expectedPullRequest, expected)
 			webHookHandler.HandlePullRequestReviewCommentEvent(prCommentJSONData)
 		})
 
 		It("should ignore pull request commented on from ignored comment user", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsIgnoredCommentUser(gomock.Any()).Return(true)
-
-			slackMock.EXPECT().GetMessage(gomock.Any()).MaxTimes(0)
-			slackMock.EXPECT().SendReply(gomock.Any(), gomock.Any()).MaxTimes(0)
 
 			webHookHandler.HandlePullRequestReviewCommentEvent(prCommentJSONData)
 		})
@@ -305,45 +230,36 @@ Sorry, that's not allowed since https://adrs.lvh.systems/adr/20231205-container-
 
 	Context("HandleIssueCommentEvent", func() {
 		It("should no-op if coming from a ignored repo", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"hotels-and-ancillaries"}}})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: config.GitHubConfiguration{IgnoredRepos: []string{"hotels-and-ancillaries"}}})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Times(0)
-			slackMock.EXPECT().SendMessageOnce(gomock.Any()).Times(0)
 			webHookHandler.HandleIssueCommentEvent(prIssueCommentJSONData)
 		})
 
 		It("should post comment to slack as a reply when top level pull request comment is added to PR", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsTeamMember(gomock.Any()).Return(true)
 			userMock.EXPECT().GetUserDescriptor(gomock.Any()).Return("<@123>")
 			userMock.EXPECT().IsIgnoredCommentUser("georgesmith96").Return(false)
-			messageKey := &slack.Message{}
-			slackMock.EXPECT().GetMessage(gomock.Any()).Return(messageKey, nil)
 
 			expected := `<@123> left a <https://github.com/loveholidays/hotels-and-ancillaries/pull/1015#issuecomment-1924011855|comment>:
 Just leaving a top level comment here`
 
-			slackMock.EXPECT().SendReply(messageKey, expected)
+			expectedEvent := gh.IssueCommentEvent{}
+			err := json.Unmarshal(prIssueCommentJSONData, &expectedEvent)
+			Expect(err).NotTo(HaveOccurred())
+			expectedPullRequest := &gh.PullRequest{User: expectedEvent.Issue.User, Assignees: expectedEvent.Issue.Assignees, HTMLURL: expectedEvent.Issue.HTMLURL}
+			notifierMock.EXPECT().NotifyComment(slackMock, expectedPullRequest, expected)
 			webHookHandler.HandleIssueCommentEvent(prIssueCommentJSONData)
 		})
 
 		It("should ignore top level pull request comment added to PR from ignored comment user", func() {
-			webHookHandler := handler.NewGitHandler(slackMock, userMock, validEmojis(), config.Configuration{GitHub: githubConfiguration})
+			webHookHandler := handler.NewGitHandler(slackMock, userMock, notifierMock, config.Configuration{GitHub: githubConfiguration})
 
 			userMock.EXPECT().IsIgnoredCommentUser("georgesmith96").Return(true)
-			slackMock.EXPECT().GetMessage(gomock.Any()).MaxTimes(0)
 
-			slackMock.EXPECT().SendReply(gomock.Any(), gomock.Any()).MaxTimes(0)
 			webHookHandler.HandleIssueCommentEvent(prIssueCommentJSONData)
 		})
 	})
 })
-
-func validEmojis() config.EmojiConfiguration {
-	return config.EmojiConfiguration{
-		Approve: "+1",
-		Merge:   "merged",
-		Close:   "x",
-	}
-}

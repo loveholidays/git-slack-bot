@@ -21,7 +21,6 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"git-slack-bot/internal/config"
 	messageBuilder "git-slack-bot/internal/messagebuilder"
 	"git-slack-bot/internal/slack"
@@ -50,21 +49,30 @@ type GitEventHandler interface {
 	HandleIssueCommentEvent(body []byte)
 }
 
+type PullRequestNotifier interface {
+	NotifyPullRequestOpened(connector slack.Interactor, pullRequest *gh.PullRequest)
+	NotifyPullRequestClosed(connector slack.Interactor, pullRequest *gh.PullRequest)
+	NotifyPullRequestReopened(connector slack.Interactor, pullRequest *gh.PullRequest)
+	NotifyReviewSubmitted(connector slack.Interactor, pullRequest *gh.PullRequest, review *gh.PullRequestReview)
+	NotifyReviewDismissed(connector slack.Interactor, pullRequest *gh.PullRequest)
+	NotifyComment(connector slack.Interactor, pullRequest *gh.PullRequest, message string)
+}
+
 type GitHandler struct {
 	slackConnector    slack.Interactor
 	messageBuilder    messageBuilder.MessageBuilder
 	userService       user.Service
-	emoji             config.EmojiConfiguration
+	notifier          PullRequestNotifier
 	notificationRules []config.NotificationRule
 	ignoredRepos      []string
 }
 
-func NewGitHandler(slackConnector slack.Interactor, userService user.Service, emoji config.EmojiConfiguration, configuration config.Configuration) *GitHandler {
+func NewGitHandler(slackConnector slack.Interactor, userService user.Service, notifier PullRequestNotifier, configuration config.Configuration) *GitHandler {
 	return &GitHandler{
 		slackConnector:    slackConnector,
 		messageBuilder:    messageBuilder.MessageBuilder{},
 		userService:       userService,
-		emoji:             emoji,
+		notifier:          notifier,
 		notificationRules: configuration.NotificationRules(),
 		ignoredRepos:      configuration.GitHub.IgnoredRepos,
 	}
@@ -84,48 +92,12 @@ func (g *GitHandler) HandlePullRequestEvent(body []byte) {
 	for _, connector := range g.notificationDestinations(event.Repo, pullRequest, event.GetAction() == assigned) {
 		switch event.GetAction() {
 		case closed:
-			g.closePullRequest(connector, pullRequest)
+			g.notifier.NotifyPullRequestClosed(connector, pullRequest)
 		case reopened:
-			g.reopenPullRequest(connector, pullRequest)
+			g.notifier.NotifyPullRequestReopened(connector, pullRequest)
 		default:
-			g.notifyPullRequest(connector, pullRequest)
+			g.notifier.NotifyPullRequestOpened(connector, pullRequest)
 		}
-	}
-}
-
-func (g *GitHandler) reopenPullRequest(connector slack.Interactor, pullRequest *gh.PullRequest) {
-	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
-	slackMessage, err := connector.GetMessage(messageKey)
-	if err != nil {
-		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
-		return
-	}
-	connector.RemoveReactionFromMessage("x", slackMessage)
-}
-
-func (g *GitHandler) notifyPullRequest(connector slack.Interactor, pullRequest *gh.PullRequest) {
-	if pullRequest.GetDraft() || pullRequest.GetState() == closed {
-		return
-	}
-	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
-	message := g.messageBuilder.BuildPRMessage(g.userService.GetUserDescriptor(pullRequest.GetUser().GetLogin()), pullRequest)
-	connector.SendMessageOnce(slack.Notification{Key: messageKey, Text: message, CreatedAt: pullRequest.GetCreatedAt().Time})
-}
-
-func (g *GitHandler) closePullRequest(connector slack.Interactor, pullRequest *gh.PullRequest) {
-	if pullRequest.GetDraft() {
-		return
-	}
-	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
-	slackMessage, err := connector.GetMessage(messageKey)
-	if err != nil {
-		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
-		return
-	}
-	if pullRequest.MergedAt != nil {
-		connector.AddReactionToMessage(g.emoji.Merge, slackMessage)
-	} else {
-		connector.AddReactionToMessage(g.emoji.Close, slackMessage)
 	}
 }
 
@@ -145,36 +117,11 @@ func (g *GitHandler) HandlePullRequestReviewEvent(body []byte) {
 	for _, connector := range g.notificationDestinations(event.Repo, pullRequest, false) {
 		switch event.GetAction() {
 		case submitted:
-			g.submitReview(connector, pullRequest, event.Review)
+			g.notifier.NotifyReviewSubmitted(connector, pullRequest, event.Review)
 		case dismissed:
-			g.dismissReview(connector, pullRequest)
+			g.notifier.NotifyReviewDismissed(connector, pullRequest)
 		}
 	}
-}
-
-func (g *GitHandler) submitReview(connector slack.Interactor, pullRequest *gh.PullRequest, review *gh.PullRequestReview) {
-	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
-	slackMessage, err := connector.GetMessage(messageKey)
-	if err != nil {
-		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
-		return
-	}
-	if review.GetState() == approved {
-		connector.AddReactionToMessage(g.emoji.Approve, slackMessage)
-	}
-	if review.GetBody() != "" {
-		connector.SendReply(slackMessage, g.messageBuilder.BuildPRReviewMessage(g.userService.GetUserDescriptor(review.GetUser().GetLogin()), review))
-	}
-}
-
-func (g *GitHandler) dismissReview(connector slack.Interactor, pullRequest *gh.PullRequest) {
-	messageKey := fmt.Sprintf("<%s>", pullRequest.GetHTMLURL())
-	slackMessage, err := connector.GetMessage(messageKey)
-	if err != nil {
-		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
-		return
-	}
-	connector.RemoveReactionFromMessage(g.emoji.Approve, slackMessage)
 }
 
 type commentEvent struct {
@@ -207,7 +154,7 @@ func (g *GitHandler) handleCommentEvent(body []byte) {
 		return
 	}
 	for _, connector := range g.notificationDestinations(event.Repo, pullRequest, false) {
-		g.sendCommentReply(connector, pullRequest.GetHTMLURL(), g.commentMessage(event))
+		g.notifier.NotifyComment(connector, pullRequest, g.commentMessage(event))
 	}
 }
 
@@ -218,16 +165,6 @@ func (g *GitHandler) commentMessage(event *commentEvent) string {
 		return g.messageBuilder.BuildIssueCommentMessage(userDescriptor, gh.IssueCommentEvent{Comment: comment})
 	}
 	return g.messageBuilder.BuildPRCommentMessage(userDescriptor, event.PullRequestReviewCommentEvent)
-}
-
-func (g *GitHandler) sendCommentReply(connector slack.Interactor, pullRequestURL, message string) {
-	messageKey := fmt.Sprintf("<%s>", pullRequestURL)
-	slackMessage, err := connector.GetMessage(messageKey)
-	if err != nil {
-		slog.Error("Could not find message", slog.Any("messageKey", messageKey), slog.Any("error", err))
-		return
-	}
-	connector.SendReply(slackMessage, message)
 }
 
 func (g *GitHandler) isIgnoredRepo(repoName string) bool {
