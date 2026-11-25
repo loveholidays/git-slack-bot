@@ -174,6 +174,40 @@ var _ = Describe("GitHub connector queries", func() {
 
 	})
 
+	It("should retrieve the full PR using its URL", func() {
+		expected := &gh.PullRequest{Number: new(42), Stack: &gh.PullRequestStack{ID: new(int64(123))}}
+		mockClient.EXPECT().GetPullRequest(gomock.Any(), "loveholidays", "flux", 42).Return(expected, nil)
+
+		pullRequest, err := connector.GetPullRequest("https://github.com/loveholidays/flux/pull/42")
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pullRequest).To(Equal(expected))
+	})
+
+	It("should return the error when PR retrieval fails", func() {
+		expectedError := errors.New("PR unavailable")
+		mockClient.EXPECT().GetPullRequest(gomock.Any(), "loveholidays", "flux", 42).Return(nil, expectedError)
+
+		pullRequest, err := connector.GetPullRequest("https://github.com/loveholidays/flux/pull/42")
+
+		Expect(pullRequest).To(BeNil())
+		Expect(err).To(MatchError(expectedError))
+	})
+
+	It("should reject URLs that do not identify a PR", func() {
+		pullRequest, err := connector.GetPullRequest("https://github.com/loveholidays/flux/issues/42")
+
+		Expect(pullRequest).To(BeNil())
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("should reject a non-numeric PR number", func() {
+		pullRequest, err := connector.GetPullRequest("https://github.com/loveholidays/flux/pull/invalid")
+
+		Expect(pullRequest).To(BeNil())
+		Expect(err).To(HaveOccurred())
+	})
+
 	It("should return stack members in API order", func() {
 		expected := &gh.PullRequestStackDetails{
 			ID: 123, Number: 7,

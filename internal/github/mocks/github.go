@@ -56,6 +56,21 @@ func (mr *MockClientMockRecorder) GetOrg(ctx, orgName any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrg", reflect.TypeOf((*MockClient)(nil).GetOrg), ctx, orgName)
 }
 
+// GetPullRequest mocks base method.
+func (m *MockClient) GetPullRequest(ctx context.Context, owner, repo string, number int) (*github.PullRequest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPullRequest", ctx, owner, repo, number)
+	ret0, _ := ret[0].(*github.PullRequest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPullRequest indicates an expected call of GetPullRequest.
+func (mr *MockClientMockRecorder) GetPullRequest(ctx, owner, repo, number any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPullRequest", reflect.TypeOf((*MockClient)(nil).GetPullRequest), ctx, owner, repo, number)
+}
+
 // GetStack mocks base method.
 func (m *MockClient) GetStack(ctx context.Context, owner, repo string, stackNumber int) (*github.PullRequestStackDetails, error) {
 	m.ctrl.T.Helper()
@@ -123,6 +138,21 @@ func NewMockInteractor(ctrl *gomock.Controller) *MockInteractor {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockInteractor) EXPECT() *MockInteractorMockRecorder {
 	return m.recorder
+}
+
+// GetPullRequest mocks base method.
+func (m *MockInteractor) GetPullRequest(pullRequestURL string) (*github.PullRequest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPullRequest", pullRequestURL)
+	ret0, _ := ret[0].(*github.PullRequest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPullRequest indicates an expected call of GetPullRequest.
+func (mr *MockInteractorMockRecorder) GetPullRequest(pullRequestURL any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPullRequest", reflect.TypeOf((*MockInteractor)(nil).GetPullRequest), pullRequestURL)
 }
 
 // GetStack mocks base method.
