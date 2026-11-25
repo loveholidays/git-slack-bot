@@ -270,6 +270,18 @@ func (mr *MockInteractorMockRecorder) SendMessageOnce(notification any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessageOnce", reflect.TypeOf((*MockInteractor)(nil).SendMessageOnce), notification)
 }
 
+// SendOrUpdateMessage mocks base method.
+func (m *MockInteractor) SendOrUpdateMessage(notification slack.Notification) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SendOrUpdateMessage", notification)
+}
+
+// SendOrUpdateMessage indicates an expected call of SendOrUpdateMessage.
+func (mr *MockInteractorMockRecorder) SendOrUpdateMessage(notification any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendOrUpdateMessage", reflect.TypeOf((*MockInteractor)(nil).SendOrUpdateMessage), notification)
+}
+
 // SendReply mocks base method.
 func (m *MockInteractor) SendReply(slackMessage *slack0.Message, message string) {
 	m.ctrl.T.Helper()
