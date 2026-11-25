@@ -11,11 +11,11 @@ from urllib.request import Request, urlopen
 import yaml
 
 
-# Exclude the reminder's own infrastructure container as well as existing sidecars.
+# Exclude the reminder's own image, infrastructure sidecars, and the curl-only preload trigger.
 QUERY = '''
 max by (lh_cluster, namespace, label_app, container, image_spec) (
   kube_pod_container_info{
-    container!~"metrics|nginx|cloud-sql-proxy|ship-heap-dump|redis-node",
+    container!~"metrics|nginx|cloud-sql-proxy|ship-heap-dump|redis-node|full-preload-all",
     image_spec!~"eu[.]gcr[.]io/loveholidays-ci-cd/shopping-staging-image-reminder(:|@).*",
     image_spec!="",
     image_spec!~".*:prod-.*"
