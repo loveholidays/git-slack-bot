@@ -9,7 +9,7 @@ import (
 	mock_user "git-slack-bot/internal/user/mocks"
 	"time"
 
-	gh "github.com/google/go-github/v56/github"
+	gh "github.com/google/go-github/v93/github"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/slack-go/slack"
 	"go.uber.org/mock/gomock"
