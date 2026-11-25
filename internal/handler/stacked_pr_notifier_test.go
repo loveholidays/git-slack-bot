@@ -94,6 +94,7 @@ var _ = Describe("Stacked PR notifier", func() {
 			notifier.NotifyPullRequestReopened(slackMock, pr)
 		})
 		It("should update approval status and post the formatted review", func() {
+			review.Body = new("Looks good")
 			builder.EXPECT().BuildPRStackStatusMessage(message, *pr, true, emoji).Return(notification.Text)
 			slackMock.EXPECT().SendOrUpdateMessage(notification)
 			users.EXPECT().GetUserDescriptor("reviewer").Return("<@reviewer>")
@@ -101,18 +102,22 @@ var _ = Describe("Stacked PR notifier", func() {
 			slackMock.EXPECT().SendReply(message, "formatted review")
 			notifier.NotifyReviewSubmitted(slackMock, pr, review)
 		})
+		It("should update approval status without replying when the review has no comment", func() {
+			builder.EXPECT().BuildPRStackStatusMessage(message, *pr, true, emoji).Return(notification.Text)
+			slackMock.EXPECT().SendOrUpdateMessage(notification)
+			notifier.NotifyReviewSubmitted(slackMock, pr, review)
+		})
 		It("should post a non-approval review without changing approval status", func() {
 			review.State = new("changes_requested")
+			review.Body = new("Please update this")
 			users.EXPECT().GetUserDescriptor("reviewer").Return("<@reviewer>")
 			builder.EXPECT().BuildPRStackReviewMessage("<@reviewer>", *pr, *review).Return("formatted review")
 			slackMock.EXPECT().SendReply(message, "formatted review")
 			notifier.NotifyReviewSubmitted(slackMock, pr, review)
 		})
-		It("should clear approval status and identify the PR whose review was dismissed", func() {
+		It("should clear approval status without replying when a review is dismissed", func() {
 			builder.EXPECT().BuildPRStackStatusMessage(message, *pr, false, emoji).Return(notification.Text)
 			slackMock.EXPECT().SendOrUpdateMessage(notification)
-			expected := "Review dismissed for <https://github.com/loveholidays/flux/pull/42|PR #42>."
-			slackMock.EXPECT().SendReply(message, expected)
 			notifier.NotifyReviewDismissed(slackMock, pr)
 		})
 		It("should identify the PR and preserve the supplied comment", func() {
