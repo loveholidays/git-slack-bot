@@ -36,8 +36,11 @@ func (configuration Configuration) Validate() error {
 }
 
 func (rule NotificationRule) validate() error {
-	if rule.Relationship != "author" && rule.Relationship != "assignee" {
-		return fmt.Errorf("relationship must be author or assignee")
+	if !slices.Contains([]string{"author", "assignee", "dependabot"}, rule.Relationship) {
+		return fmt.Errorf("relationship must be author, assignee or dependabot")
+	}
+	if rule.Relationship == "dependabot" && rule.Destination != "channel" {
+		return fmt.Errorf("dependabot notifications require a channel destination")
 	}
 	if err := rule.validateDestination(); err != nil {
 		return err
